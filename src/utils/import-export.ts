@@ -335,6 +335,12 @@ export async function exportAllSettings(): Promise<void> {
 		// Create a copy of the data to modify
 		const exportData: StorageData = { ...allData };
 
+		// Include critical local-only settings (these do NOT live in sync storage)
+		// NOTE: local storage is per-extension-id too, so this mainly helps users export before switching IDs / reinstalling.
+		const localKeys = ['feishu_settings', 'history', 'ratings', 'debugMode'] as const;
+		const localData = await browser.storage.local.get([...localKeys]) as Record<string, unknown>;
+		exportData.__local = localData;
+
 		// Decompress all templates
 		const templateIds = exportData.template_list || [];
 		for (const id of templateIds) {
@@ -388,6 +394,8 @@ async function importAllSettingsFromJson(jsonContent: string): Promise<void> {
 		if (confirm(getMessage('confirmReplaceSettings'))) {
 			// Create a copy of the settings to modify
 			const importData: StorageData = { ...settings };
+			const localData = (importData.__local && typeof importData.__local === 'object') ? importData.__local as Record<string, unknown> : null;
+			delete importData.__local;
 			
 			// Compress all templates
 			const templateIds = importData.template_list || [];
@@ -420,6 +428,12 @@ async function importAllSettingsFromJson(jsonContent: string): Promise<void> {
 
 			await browser.storage.sync.clear();
 			await browser.storage.sync.set(importData);
+
+			// Restore local-only settings if present
+			if (localData) {
+				await browser.storage.local.set(localData);
+			}
+
 			await loadSettings();
 			await loadTemplates();
 			updateTemplateList();
