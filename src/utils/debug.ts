@@ -1,4 +1,6 @@
 import browser from './browser-polyfill';
+export { createLogger } from './logger';
+export type { LogLevel } from './logger';
 
 declare const DEBUG_MODE: boolean;
 
@@ -17,7 +19,6 @@ if (DEBUG_MODE) {
 export const toggleDebug = (filterName: string) => {
 	if (!DEBUG_MODE) return;
 	debugMode = !debugMode;
-	// Save the new state to storage
 	browser.storage.local.set({ debugMode }).then(() => {
 		console.log(`${filterName} debug mode is now ${debugMode ? 'ON' : 'OFF'}`);
 	}).catch((error) => {
@@ -25,17 +26,19 @@ export const toggleDebug = (filterName: string) => {
 	});
 };
 
-// Helper function for debug logging
+// Legacy helper — still works; new code should use createLogger() instead
 export const debugLog = (filterName: string, ...args: any[]) => {
 	if (DEBUG_MODE && debugMode) {
 		console.log(`[${filterName}]`, ...args);
 	}
 };
 
-// Function to check if debug mode is on
 export const isDebugMode = () => DEBUG_MODE && debugMode;
 
-// Expose toggleDebug to the global scope only in debug mode
 if (DEBUG_MODE) {
-	(window as any).toggleDebug = toggleDebug;
+	try {
+		(window as any).toggleDebug = toggleDebug;
+	} catch {
+		// service worker context has no window — safe to ignore
+	}
 }

@@ -8,8 +8,11 @@ import { createMarkdownContent } from 'defuddle/full';
 import { flattenShadowDom } from './utils/flatten-shadow-dom';
 import { saveFile } from './utils/file-utils';
 import { debugLog } from './utils/debug';
+import { createLogger } from './utils/logger';
 import { extractBilibiliStructuredContent, isBilibiliVideoUrl } from './utils/bilibili-extractor';
 import { extractFeishuStructuredContent, isFeishuDocUrl } from './utils/feishu-extractor';
+
+const contentLogger = createLogger('Content');
 
 declare global {
 	interface Window {
@@ -331,13 +334,13 @@ declare global {
 					.catch(() => defuddle.parse());
 			const bilibiliContent = isBilibiliVideoUrl(document.URL)
 				? await extractBilibiliStructuredContent(document).catch((error) => {
-					console.warn('Failed to extract Bilibili structured content:', error);
+					contentLogger.warn('Failed to extract Bilibili structured content', { error: String(error) });
 					return null;
 				})
 				: null;
 			const feishuContent = isFeishuDocUrl(document.URL)
 				? await extractFeishuStructuredContent(document).catch((error) => {
-					console.warn('Failed to extract Feishu structured content:', error);
+					contentLogger.warn('Failed to extract Feishu structured content', { error: String(error) });
 					return null;
 				})
 				: null;
@@ -419,7 +422,7 @@ declare global {
 			};
 				sendResponse(response);
 			}).catch((error: unknown) => {
-				console.error('[Obsidian Clipper] getPageContent error:', error);
+				contentLogger.error('getPageContent error', { error: error instanceof Error ? error.message : String(error) });
 				sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
 			});
 			return true;

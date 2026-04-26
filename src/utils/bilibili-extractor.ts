@@ -1,4 +1,7 @@
 import browser from './browser-polyfill';
+import { createLogger } from './logger';
+
+const logger = createLogger('Bilibili');
 
 export interface BilibiliParsedUrl {
 	bvid: string | null;
@@ -286,11 +289,13 @@ export async function extractBilibiliStructuredContent(doc: Document): Promise<B
 	const viewResponse = await fetchBilibiliJson(viewUrl.toString());
 	const viewData = viewResponse?.data as BilibiliViewData | undefined;
 	if (!viewData) {
+		logger.warn('View API returned no data', { url: viewUrl.toString() });
 		return null;
 	}
 
 	const resolvedPage = resolveBilibiliPage(viewData, parsedUrl.page);
 	if (!resolvedPage) {
+		logger.warn('Failed to resolve page', { bvid: viewData.bvid, requestedPage: parsedUrl.page });
 		return null;
 	}
 
@@ -323,6 +328,13 @@ export async function extractBilibiliStructuredContent(doc: Document): Promise<B
 		transcript
 	});
 	const wordCount = `${description}\n${transcriptText}`.trim().split(/\s+/).filter(Boolean).length;
+
+	logger.info('Extraction complete', {
+		bvid: viewData.bvid,
+		chapters: chapters.length,
+		transcriptCues: transcript.length,
+		subtitleTrack: selectedTrack?.lan_doc ?? 'none',
+	});
 
 	return {
 		title,

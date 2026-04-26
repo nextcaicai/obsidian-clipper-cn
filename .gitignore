@@ -23,3 +23,6 @@ assets/shared
 .cursorrules
 .env
 context/
+
+# Chrome extension signing key (do not commit)
+keys/

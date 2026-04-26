@@ -4,6 +4,9 @@ import { updateCurrentActiveTab, isValidUrl, isBlankPage } from './utils/active-
 import { TextHighlightData } from './utils/highlighter';
 import { debounce } from './utils/debounce';
 import { Settings } from './types/types';
+import { createLogger } from './utils/logger';
+
+const bgLogger = createLogger('Background');
 
 const YOUTUBE_EMBED_RULE_ID = 9001;
 const BILIBILI_EMBED_RULE_ID = 9002;
@@ -141,14 +144,19 @@ function isAllowedFeishuFetchUrl(url: string): boolean {
 
 async function getFeishuTenantToken(): Promise<string> {
 	if (feishuTokenCache && Date.now() < feishuTokenCache.expiresAt) {
+		bgLogger.debug('Using cached tenant token');
 		return feishuTokenCache.token;
 	}
 
 	const data = await browser.storage.local.get('feishu_settings');
 	const settings = data.feishu_settings as { appId?: string; appSecret?: string } | undefined;
 	if (!settings?.appId || !settings?.appSecret) {
-		throw new Error('Feishu credentials not configured. Go to Obsidian Clipper settings → General → Feishu / Lark to enter your App ID and App Secret.');
+		const msg = 'Feishu credentials not configured. Go to Obsidian Clipper settings → General → Feishu / Lark to enter your App ID and App Secret.';
+		bgLogger.warn(msg);
+		throw new Error(msg);
 	}
+
+	bgLogger.debug('Fetching new tenant token', { appId: settings.appId });
 
 	const response = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
 		method: 'POST',
@@ -157,11 +165,13 @@ async function getFeishuTenantToken(): Promise<string> {
 	});
 
 	if (!response.ok) {
+		bgLogger.error('Feishu token request failed', { status: response.status });
 		throw new Error(`Feishu token request failed: HTTP ${response.status}. Check your App ID and App Secret.`);
 	}
 
 	const result = await response.json();
 	if (result.code !== 0 || !result.tenant_access_token) {
+		bgLogger.error('Feishu token API error', { code: result.code, msg: result.msg });
 		throw new Error(`Feishu token error: ${result.msg || 'unknown'}(code ${result.code}). Verify your App ID and App Secret are correct.`);
 	}
 
@@ -171,11 +181,13 @@ async function getFeishuTenantToken(): Promise<string> {
 		expiresAt: Date.now() + expiresIn - 5 * 60 * 1000,
 	};
 
+	bgLogger.info('Tenant token acquired', { expiresInMs: expiresIn });
 	return feishuTokenCache.token;
 }
 
 async function fetchFeishuApi(url: string, options?: { method?: string; body?: string; headers?: Record<string, string> }): Promise<any> {
 	if (!isAllowedFeishuFetchUrl(url)) {
+		bgLogger.error('Blocked non-Feishu URL', { url });
 		throw new Error('Blocked Feishu fetch URL');
 	}
 
@@ -187,6 +199,8 @@ async function fetchFeishuApi(url: string, options?: { method?: string; body?: s
 		...options?.headers,
 	};
 
+	bgLogger.debug('Feishu API request', { method, url });
+
 	const fetchOptions: RequestInit = { method, headers, cache: 'no-store' };
 	if (options?.body && method !== 'GET') {
 		fetchOptions.body = options.body;
@@ -194,12 +208,14 @@ async function fetchFeishuApi(url: string, options?: { method?: string; body?: s
 
 	const response = await fetch(url, fetchOptions);
 	if (!response.ok) {
+		bgLogger.error('Feishu API HTTP error', { status: response.status, url });
 		throw new Error(`Feishu API HTTP ${response.status}: ${url}`);
 	}
 
 	const result = await response.json();
 
 	if (result.code && result.code !== 0) {
+		bgLogger.error('Feishu API business error', { code: result.code, msg: result.msg, url });
 		throw new Error(`Feishu API error ${result.code}: ${result.msg || 'unknown'} (${url})`);
 	}
 

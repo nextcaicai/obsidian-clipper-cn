@@ -1,4 +1,7 @@
 import browser from './browser-polyfill';
+import { createLogger } from './logger';
+
+const logger = createLogger('Feishu');
 
 export interface FeishuParsedUrl {
 	type: 'wiki' | 'docx' | 'doc' | null;
@@ -157,7 +160,7 @@ async function fetchFeishuApi(url: string, options?: { method?: string; body?: s
 
 	if (!response?.success) {
 		const errMsg = response?.error || 'Failed to fetch Feishu API';
-		console.warn('[Feishu Clipper] API request failed:', errMsg, 'URL:', url);
+		logger.warn('API request failed', { error: errMsg, url });
 		throw new Error(errMsg);
 	}
 	return response.data;
@@ -172,7 +175,7 @@ async function resolveDocumentId(parsedUrl: FeishuParsedUrl): Promise<{ document
 		);
 		const node = result?.data?.node;
 		if (!node?.obj_token) {
-			console.warn('[Feishu Clipper] Wiki get_node returned no obj_token. Response:', JSON.stringify(result).slice(0, 500));
+			logger.warn('Wiki get_node returned no obj_token', { result });
 			return null;
 		}
 		return { documentId: node.obj_token, objType: node.obj_type || 'docx' };
@@ -512,15 +515,17 @@ export async function extractFeishuStructuredContent(doc: Document): Promise<Fei
 
 	const parsedUrl = parseFeishuUrl(doc.URL);
 	if (!parsedUrl.token || !parsedUrl.type) {
-		console.warn('[Feishu Clipper] Failed to parse URL:', doc.URL);
+		logger.warn('Failed to parse URL', { url: doc.URL });
 		return null;
 	}
 
 	const resolved = await resolveDocumentId(parsedUrl);
 	if (!resolved) {
-		console.warn('[Feishu Clipper] Failed to resolve document ID for token:', parsedUrl.token, 'type:', parsedUrl.type);
+		logger.warn('Failed to resolve document ID', { token: parsedUrl.token, type: parsedUrl.type });
 		return null;
 	}
+
+	logger.debug('Resolved document', { documentId: resolved.documentId, objType: resolved.objType });
 
 	const [blocks, meta] = await Promise.all([
 		fetchAllBlocks(resolved.documentId),
@@ -528,9 +533,11 @@ export async function extractFeishuStructuredContent(doc: Document): Promise<Fei
 	]);
 
 	if (!blocks.length) {
-		console.warn('[Feishu Clipper] No blocks returned for document:', resolved.documentId);
+		logger.warn('No blocks returned', { documentId: resolved.documentId });
 		return null;
 	}
+
+	logger.info('Extraction complete', { documentId: resolved.documentId, blockCount: blocks.length });
 
 	const content = convertBlocksToHtml(blocks);
 	const title = meta?.title || doc.title || '';

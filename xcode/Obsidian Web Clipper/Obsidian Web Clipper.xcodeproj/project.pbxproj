@@ -718,7 +718,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper.Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper-CN.Extension";
 				PRODUCT_NAME = "Obsidian Web Clipper Extension";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -748,7 +748,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper.Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper-CN.Extension";
 				PRODUCT_NAME = "Obsidian Web Clipper Extension";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -788,7 +788,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper";
+				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper-CN";
 				PRODUCT_NAME = "Obsidian Web Clipper";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -826,7 +826,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper";
+				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper-CN";
 				PRODUCT_NAME = "Obsidian Web Clipper";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -863,7 +863,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper.Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper-CN.Extension";
 				PRODUCT_NAME = "Obsidian Web Clipper Extension";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -899,7 +899,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper.Extension";
+				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper-CN.Extension";
 				PRODUCT_NAME = "Obsidian Web Clipper Extension";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -941,7 +941,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper";
+				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper-CN";
 				PRODUCT_NAME = "Obsidian Web Clipper";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -982,7 +982,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper";
+				PRODUCT_BUNDLE_IDENTIFIER = "md.obsidian.Obsidian-Web-Clipper-CN";
 				PRODUCT_NAME = "Obsidian Web Clipper";
 				SDKROOT = macosx;
 				SWIFT_EMIT_LOC_STRINGS = YES;
