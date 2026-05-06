@@ -222,6 +222,34 @@ async function fetchFeishuApi(url: string, options?: { method?: string; body?: s
 	return result;
 }
 
+async function fetchFeishuImageAsBase64(fileToken: string): Promise<{ dataUrl: string }> {
+	const url = `https://open.feishu.cn/open-apis/drive/v1/medias/${fileToken}/download`;
+	if (!isAllowedFeishuFetchUrl(url)) {
+		throw new Error('Blocked Feishu image URL');
+	}
+
+	const token = await getFeishuTenantToken();
+	const response = await fetch(url, {
+		method: 'GET',
+		headers: { Authorization: `Bearer ${token}` },
+		cache: 'no-store',
+	});
+
+	if (!response.ok) {
+		throw new Error(`Feishu image fetch failed: HTTP ${response.status}`);
+	}
+
+	const mimeType = response.headers.get('Content-Type') || 'image/png';
+	const buffer = await response.arrayBuffer();
+	const bytes = new Uint8Array(buffer);
+	let binary = '';
+	for (let i = 0; i < bytes.byteLength; i++) {
+		binary += String.fromCharCode(bytes[i]);
+	}
+	const base64 = btoa(binary);
+	return { dataUrl: `data:${mimeType};base64,${base64}` };
+}
+
 let sidePanelOpenWindows: Set<number> = new Set();
 let highlighterModeState: { [tabId: number]: boolean } = {};
 let readerModeState: { [tabId: number]: boolean } = {};
@@ -457,6 +485,23 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			const options = (typedRequest as any).options as { method?: string; body?: string; headers?: Record<string, string> } | undefined;
 			fetchFeishuApi(typedRequest.url, options).then((data) => {
 				sendResponse({ success: true, data });
+			}).catch((error) => {
+				sendResponse({
+					success: false,
+					error: error instanceof Error ? error.message : String(error)
+				});
+			});
+			return true;
+		}
+
+		if (typedRequest.action === 'fetchFeishuImage') {
+			const fileToken = (typedRequest as any).fileToken as string;
+			if (!fileToken) {
+				sendResponse({ success: false, error: 'Missing fileToken' });
+				return true;
+			}
+			fetchFeishuImageAsBase64(fileToken).then((result) => {
+				sendResponse({ success: true, dataUrl: result.dataUrl });
 			}).catch((error) => {
 				sendResponse({
 					success: false,
@@ -780,7 +825,8 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			typedRequest.action === "toggleHighlighterMode" ||
 			typedRequest.action === "openObsidianUrl" ||
 			typedRequest.action === 'fetchBilibiliJson' ||
-			typedRequest.action === 'fetchFeishuApi') {
+			typedRequest.action === 'fetchFeishuApi' ||
+			typedRequest.action === 'fetchFeishuImage') {
 			return true;
 		}
 	}

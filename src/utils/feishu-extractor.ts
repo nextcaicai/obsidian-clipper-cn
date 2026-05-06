@@ -166,6 +166,54 @@ async function fetchFeishuApi(url: string, options?: { method?: string; body?: s
 	return response.data;
 }
 
+async function fetchFeishuImageDataUrl(fileToken: string): Promise<string | null> {
+	try {
+		const response = await browser.runtime.sendMessage({
+			action: 'fetchFeishuImage',
+			fileToken,
+		}) as { success?: boolean; dataUrl?: string; error?: string };
+
+		if (!response?.success || !response.dataUrl) {
+			logger.warn('Image fetch failed', { fileToken, error: response?.error });
+			return null;
+		}
+		return response.dataUrl;
+	} catch (err) {
+		logger.warn('Image fetch error', { fileToken, error: String(err) });
+		return null;
+	}
+}
+
+async function resolveFeishuImages(html: string): Promise<string> {
+	const tokenPattern = /feishu-image:\/\/([A-Za-z0-9_-]+)/g;
+	const tokens = new Set<string>();
+	let match: RegExpExecArray | null;
+
+	while ((match = tokenPattern.exec(html)) !== null) {
+		tokens.add(match[1]);
+	}
+
+	if (tokens.size === 0) return html;
+
+	logger.debug('Resolving Feishu images', { count: tokens.size });
+
+	const results = await Promise.all(
+		Array.from(tokens).map(async (token) => {
+			const dataUrl = await fetchFeishuImageDataUrl(token);
+			return { token, dataUrl };
+		})
+	);
+
+	let resolved = html;
+	for (const { token, dataUrl } of results) {
+		if (dataUrl) {
+			resolved = resolved.split(`feishu-image://${token}`).join(dataUrl);
+		}
+	}
+
+	return resolved;
+}
+
 async function resolveDocumentId(parsedUrl: FeishuParsedUrl): Promise<{ documentId: string; objType: string } | null> {
 	if (!parsedUrl.token) return null;
 
@@ -539,7 +587,8 @@ export async function extractFeishuStructuredContent(doc: Document): Promise<Fei
 
 	logger.info('Extraction complete', { documentId: resolved.documentId, blockCount: blocks.length });
 
-	const content = convertBlocksToHtml(blocks);
+	const rawContent = convertBlocksToHtml(blocks);
+	const content = await resolveFeishuImages(rawContent);
 	const title = meta?.title || doc.title || '';
 
 	const textContent = blocks
