@@ -24,6 +24,7 @@ Adds **Bilibili video support** in Reader Mode, bringing the same experience as 
 The official version extracts Feishu document content via generic DOM parsing, which often returns incomplete results due to Feishu's dynamic rendering. This fork integrates the **Feishu Open Platform API** to fetch document content through structured endpoints:
 
 - **Complete content** — Retrieves all document blocks including text, headings, lists, code blocks, tables, quotes, and more
+- **Image support** — Downloads document images via Feishu's internal web API without requiring extra permissions — images display correctly for any document the user can open in their browser
 - **Wiki support** — Works with both Feishu Wiki (`/wiki/`) and regular document (`/docx/`) URLs
 - **Structure preserved** — Maintains the original document hierarchy, converted to standard HTML for Obsidian Clipper to process
 
