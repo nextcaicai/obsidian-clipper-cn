@@ -166,6 +166,151 @@ async function fetchFeishuApi(url: string, options?: { method?: string; body?: s
 	return response.data;
 }
 
+// ─── Cookie-based image URL generation ───────────────────────────────────────
+// Ported from cloud-document-converter (MIT license)
+// https://github.com/whale4113/cloud-document-converter
+
+function _feishuMd5Hex(input: string): string {
+	function add32(a: number, b: number): number {
+		const lo = (a & 0xffff) + (b & 0xffff);
+		return ((a >> 16) + (b >> 16) + (lo >> 16)) << 16 | (lo & 0xffff);
+	}
+	function rol32(n: number, s: number): number { return n << s | n >>> (32 - s); }
+	function cmn(q: number, a: number, b: number, x: number, s: number, t: number): number {
+		return add32(rol32(add32(add32(b, q), add32(x, t)), s), a);
+	}
+	function ff(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(b & c | ~b & d, a, b, x, s, t); }
+	function gg(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(b & d | c & ~d, a, b, x, s, t); }
+	function hh(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(b ^ c ^ d, a, b, x, s, t); }
+	function ii(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(c ^ (b | ~d), a, b, x, s, t); }
+
+	// UTF-8 encode
+	const utf8 = unescape(encodeURIComponent(input));
+	const bitLen = utf8.length * 8;
+
+	// Pack string into 32-bit word array
+	const words: number[] = [];
+	for (let i = 0; i < bitLen; i += 8) {
+		words[i >> 5] = (words[i >> 5] || 0) | (utf8.charCodeAt(i / 8) & 0xff) << (i % 32);
+	}
+	// Append padding bit and length
+	words[bitLen >> 5] = (words[bitLen >> 5] || 0) | 0x80 << (bitLen % 32);
+	words[14 + ((bitLen + 64 >>> 9) << 4)] = bitLen;
+
+	// MD5 compression
+	let h0 = 1732584193, h1 = -271733879, h2 = -1732584194, h3 = 271733878;
+	for (let n = 0; n < words.length; n += 16) {
+		const [a0, b0, c0, d0] = [h0, h1, h2, h3];
+		const w = (i: number) => words[n + i] || 0;
+		h0 = ff(h0,h1,h2,h3,w(0),7,-680876936); h3=ff(h3,h0,h1,h2,w(1),12,-389564586);
+		h2=ff(h2,h3,h0,h1,w(2),17,606105819); h1=ff(h1,h2,h3,h0,w(3),22,-1044525330);
+		h0=ff(h0,h1,h2,h3,w(4),7,-176418897); h3=ff(h3,h0,h1,h2,w(5),12,1200080426);
+		h2=ff(h2,h3,h0,h1,w(6),17,-1473231341); h1=ff(h1,h2,h3,h0,w(7),22,-45705983);
+		h0=ff(h0,h1,h2,h3,w(8),7,1770035416); h3=ff(h3,h0,h1,h2,w(9),12,-1958414417);
+		h2=ff(h2,h3,h0,h1,w(10),17,-42063); h1=ff(h1,h2,h3,h0,w(11),22,-1990404162);
+		h0=ff(h0,h1,h2,h3,w(12),7,1804603682); h3=ff(h3,h0,h1,h2,w(13),12,-40341101);
+		h2=ff(h2,h3,h0,h1,w(14),17,-1502002290); h1=ff(h1,h2,h3,h0,w(15),22,1236535329);
+		h0=gg(h0,h1,h2,h3,w(1),5,-165796510); h3=gg(h3,h0,h1,h2,w(6),9,-1069501632);
+		h2=gg(h2,h3,h0,h1,w(11),14,643717713); h1=gg(h1,h2,h3,h0,w(0),20,-373897302);
+		h0=gg(h0,h1,h2,h3,w(5),5,-701558691); h3=gg(h3,h0,h1,h2,w(10),9,38016083);
+		h2=gg(h2,h3,h0,h1,w(15),14,-660478335); h1=gg(h1,h2,h3,h0,w(4),20,-405537848);
+		h0=gg(h0,h1,h2,h3,w(9),5,568446438); h3=gg(h3,h0,h1,h2,w(14),9,-1019803690);
+		h2=gg(h2,h3,h0,h1,w(3),14,-187363961); h1=gg(h1,h2,h3,h0,w(8),20,1163531501);
+		h0=gg(h0,h1,h2,h3,w(13),5,-1444681467); h3=gg(h3,h0,h1,h2,w(2),9,-51403784);
+		h2=gg(h2,h3,h0,h1,w(7),14,1735328473); h1=gg(h1,h2,h3,h0,w(12),20,-1926607734);
+		h0=hh(h0,h1,h2,h3,w(5),4,-378558); h3=hh(h3,h0,h1,h2,w(8),11,-2022574463);
+		h2=hh(h2,h3,h0,h1,w(11),16,1839030562); h1=hh(h1,h2,h3,h0,w(14),23,-35309556);
+		h0=hh(h0,h1,h2,h3,w(1),4,-1530992060); h3=hh(h3,h0,h1,h2,w(4),11,1272893353);
+		h2=hh(h2,h3,h0,h1,w(7),16,-155497632); h1=hh(h1,h2,h3,h0,w(10),23,-1094730640);
+		h0=hh(h0,h1,h2,h3,w(13),4,681279174); h3=hh(h3,h0,h1,h2,w(0),11,-358537222);
+		h2=hh(h2,h3,h0,h1,w(3),16,-722521979); h1=hh(h1,h2,h3,h0,w(6),23,76029189);
+		h0=hh(h0,h1,h2,h3,w(9),4,-640364487); h3=hh(h3,h0,h1,h2,w(12),11,-421815835);
+		h2=hh(h2,h3,h0,h1,w(15),16,530742520); h1=hh(h1,h2,h3,h0,w(2),23,-995338651);
+		h0=ii(h0,h1,h2,h3,w(0),6,-198630844); h3=ii(h3,h0,h1,h2,w(7),10,1126891415);
+		h2=ii(h2,h3,h0,h1,w(14),15,-1416354905); h1=ii(h1,h2,h3,h0,w(5),21,-57434055);
+		h0=ii(h0,h1,h2,h3,w(12),6,1700485571); h3=ii(h3,h0,h1,h2,w(3),10,-1894986606);
+		h2=ii(h2,h3,h0,h1,w(10),15,-1051523); h1=ii(h1,h2,h3,h0,w(1),21,-2054922799);
+		h0=ii(h0,h1,h2,h3,w(8),6,1873313359); h3=ii(h3,h0,h1,h2,w(15),10,-30611744);
+		h2=ii(h2,h3,h0,h1,w(6),15,-1560198380); h1=ii(h1,h2,h3,h0,w(13),21,1309151649);
+		h0=ii(h0,h1,h2,h3,w(4),6,-145523070); h3=ii(h3,h0,h1,h2,w(11),10,-1120210379);
+		h2=ii(h2,h3,h0,h1,w(2),15,718787259); h1=ii(h1,h2,h3,h0,w(9),21,-343485551);
+		h0=add32(h0,a0); h1=add32(h1,b0); h2=add32(h2,c0); h3=add32(h3,d0);
+	}
+
+	// Words to binary string to hex
+	const hex = '0123456789abcdef';
+	let result = '';
+	for (const word of [h0, h1, h2, h3]) {
+		for (let i = 0; i < 4; i++) {
+			const byte = (word >>> (i * 8)) & 0xff;
+			result += hex[byte >>> 4] + hex[byte & 0xf];
+		}
+	}
+	return result;
+}
+
+function _feishuRandomSeed(len: number): string {
+	const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+	let result = '';
+	for (let i = 0; i < len; i++) {
+		result += chars[Math.floor(Math.random() * chars.length)];
+	}
+	return result;
+}
+
+function feishuEncodeToken(token: string): string {
+	const t = Math.round(Date.now() / 1000);
+	const n = t + 3600;
+	const r = `${t}:${n}`;
+	const tokenStr = `Token:${token}`;
+	const s = _feishuRandomSeed(32);
+	const hash = _feishuMd5Hex(`${s}_${tokenStr}_${r}_V4`);
+	return `${hash}_${s}_${tokenStr}_${r}_V4`;
+}
+
+function feishuBase64Url(str: string): string {
+	return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function getFeishuImageApiBase(): string {
+	if (typeof window === 'undefined') return '';
+	const host = (window as any).local?.apiHost ?? ('https://' + location.host);
+	return host + '/space';
+}
+
+function getCsrfToken(): string {
+	if (typeof document === 'undefined') return '';
+	const match = /(?:^|;)\s*_csrf_token=([^;]+)/.exec(document.cookie);
+	return match ? decodeURIComponent(match[1]) : '';
+}
+
+function generateFeishuInternalImageUrl(token: string): string {
+	const encoded = feishuBase64Url(feishuEncodeToken(token));
+	return `${getFeishuImageApiBase()}/api/box/stream/download/asynccode/?code=${encoded}`;
+}
+
+async function activateFeishuImageUrls(tokenToCode: Record<string, string>): Promise<boolean> {
+	if (typeof fetch === 'undefined' || typeof location === 'undefined') return false;
+	try {
+		const base = (window as any).local?.apiHost ?? ('https://' + location.host);
+		const url = `${base}/space/api/docx/resources/copy_out`;
+		const csrf = getCsrfToken();
+		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+		if (csrf) headers['X-Csrftoken'] = csrf;
+		const res = await fetch(url, {
+			method: 'POST',
+			headers,
+			credentials: 'include',
+			body: JSON.stringify({ tokens: tokenToCode }),
+		});
+		const data = await res.json() as { code?: number };
+		return data.code === 0;
+	} catch {
+		return false;
+	}
+}
+// ─── End cookie-based image URL generation ───────────────────────────────────
+
 async function fetchFeishuImageDataUrl(fileToken: string): Promise<string | null> {
 	try {
 		const response = await browser.runtime.sendMessage({
@@ -174,12 +319,12 @@ async function fetchFeishuImageDataUrl(fileToken: string): Promise<string | null
 		}) as { success?: boolean; dataUrl?: string; error?: string };
 
 		if (!response?.success || !response.dataUrl) {
-			logger.warn('Image fetch failed', { fileToken, error: response?.error });
+			logger.warn(`Image binary fetch failed [${fileToken}]: ${response?.error}`);
 			return null;
 		}
 		return response.dataUrl;
 	} catch (err) {
-		logger.warn('Image fetch error', { fileToken, error: String(err) });
+		logger.warn(`Image binary fetch error [${fileToken}]: ${String(err)}`);
 		return null;
 	}
 }
@@ -195,19 +340,45 @@ async function resolveFeishuImages(html: string): Promise<string> {
 
 	if (tokens.size === 0) return html;
 
-	logger.debug('Resolving Feishu images', { count: tokens.size });
+	const tokenList = Array.from(tokens);
+	logger.debug(`Resolving ${tokenList.length} Feishu image(s)`);
 
-	const results = await Promise.all(
-		Array.from(tokens).map(async (token) => {
-			const dataUrl = await fetchFeishuImageDataUrl(token);
-			return { token, dataUrl };
-		})
-	);
+	// Strategy 1: cookie-based internal URL (works for any doc the user can view, no credentials needed)
+	const cookieUrls = new Map<string, string>();
+	if (typeof window !== 'undefined' && getFeishuImageApiBase()) {
+		const tokenToCode: Record<string, string> = {};
+		for (const token of tokenList) {
+			const code = feishuBase64Url(feishuEncodeToken(token));
+			tokenToCode[token] = code;
+			cookieUrls.set(token, `${getFeishuImageApiBase()}/api/box/stream/download/asynccode/?code=${code}`);
+		}
+		// Activate the URLs so they're accessible (uses browser session cookies)
+		await activateFeishuImageUrls(tokenToCode);
+	}
+
+	// Strategy 2: for tokens not resolved via cookie URL, fall back to Open Platform API binary download
+	const missingTokens = tokenList.filter(t => !cookieUrls.has(t));
+	const base64Results = new Map<string, string>();
+
+	if (missingTokens.length > 0) {
+		logger.debug(`Falling back to binary download for ${missingTokens.length} image(s)`);
+		await Promise.all(
+			missingTokens.map(async (token) => {
+				const dataUrl = await fetchFeishuImageDataUrl(token);
+				if (dataUrl) {
+					base64Results.set(token, dataUrl);
+				}
+			})
+		);
+	}
 
 	let resolved = html;
-	for (const { token, dataUrl } of results) {
-		if (dataUrl) {
-			resolved = resolved.split(`feishu-image://${token}`).join(dataUrl);
+	for (const token of tokenList) {
+		const replacement = cookieUrls.get(token) || base64Results.get(token);
+		if (replacement) {
+			resolved = resolved.split(`feishu-image://${token}`).join(replacement);
+		} else {
+			logger.warn(`Could not resolve image [${token}]`);
 		}
 	}
 
