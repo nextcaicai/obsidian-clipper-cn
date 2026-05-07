@@ -28,6 +28,8 @@
 - **Wiki 支持** — 同时支持飞书知识库（`/wiki/`）和普通文档（`/docx/`）链接
 - **结构保留** — 保留文档原有层级结构，转换为标准 HTML，可被 Obsidian Clipper 正常处理
 
+> **图片体积提示**：由于图片会转成 base64 data URL 嵌入笔记本身，Markdown 文件可能会变大。如果在意文件大小，可以在 Obsidian 社区插件市场搜索并安装 **Local Image Plus** 插件。这样每次剪存文档进 Obsidian 后，该插件都会自动把文档中的图片下载保存为本地图片（保存目录支持自定义），并将文档中的 base64 data URL 替换为本地图片 URL。
+
 **配置方法：**
 
 1. 前往[飞书开放平台](https://open.feishu.cn/app)创建一个自建应用

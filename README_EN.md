@@ -28,6 +28,8 @@ The official version extracts Feishu document content via generic DOM parsing, w
 - **Wiki support** — Works with both Feishu Wiki (`/wiki/`) and regular document (`/docx/`) URLs
 - **Structure preserved** — Maintains the original document hierarchy, converted to standard HTML for Obsidian Clipper to process
 
+> **Image size note**: Images are embedded into the note as base64 data URLs, which can make Markdown files larger. If file size matters, search for and install the **Local Image Plus** plugin from Obsidian's community plugin marketplace. After each document is clipped into Obsidian, the plugin can automatically download images in the note as local image files (with a customizable save directory) and replace the base64 data URLs with local image URLs.
+
 **Setup:**
 
 1. Go to [Feishu Open Platform](https://open.feishu.cn/app) and create a custom app

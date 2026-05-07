@@ -177,7 +177,7 @@ function _feishuMd5Hex(input: string): string {
 	}
 	function rol32(n: number, s: number): number { return n << s | n >>> (32 - s); }
 	function cmn(q: number, a: number, b: number, x: number, s: number, t: number): number {
-		return add32(rol32(add32(add32(b, q), add32(x, t)), s), a);
+		return add32(rol32(add32(add32(a, q), add32(x, t)), s), b);
 	}
 	function ff(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(b & c | ~b & d, a, b, x, s, t); }
 	function gg(a: number, b: number, c: number, d: number, x: number, s: number, t: number) { return cmn(b & d | c & ~d, a, b, x, s, t); }
@@ -272,71 +272,29 @@ function feishuBase64Url(str: string): string {
 	return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function getFeishuImageApiBase(): string {
-	if (typeof window === 'undefined') return '';
-	const host = (window as any).local?.apiHost ?? ('https://' + location.host);
-	return host + '/space';
-}
+// Cache the API host read from MAIN world (window.local.apiHost).
+// We request it via background.ts which uses chrome.scripting (world: MAIN),
+// bypassing the page's CSP that would block inline <script> injection.
+let _feishuApiHostCache: string | null = null;
 
-function getCsrfToken(): string {
-	if (typeof document === 'undefined') return '';
-	const match = /(?:^|;)\s*_csrf_token=([^;]+)/.exec(document.cookie);
-	return match ? decodeURIComponent(match[1]) : '';
-}
+async function readFeishuApiHostFromMainWorld(): Promise<string> {
+	if (_feishuApiHostCache !== null) return _feishuApiHostCache;
 
-function generateFeishuInternalImageUrl(token: string): string {
-	const encoded = feishuBase64Url(feishuEncodeToken(token));
-	return `${getFeishuImageApiBase()}/api/box/stream/download/asynccode/?code=${encoded}`;
-}
-
-async function activateFeishuImageUrls(tokenToCode: Record<string, string>): Promise<boolean> {
-	if (typeof fetch === 'undefined' || typeof location === 'undefined') return false;
 	try {
-		const base = (window as any).local?.apiHost ?? ('https://' + location.host);
-		const url = `${base}/space/api/docx/resources/copy_out`;
-		const csrf = getCsrfToken();
-		const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-		if (csrf) headers['X-Csrftoken'] = csrf;
-		const res = await fetch(url, {
-			method: 'POST',
-			headers,
-			credentials: 'include',
-			body: JSON.stringify({ tokens: tokenToCode }),
-		});
-		const data = await res.json() as { code?: number };
-		return data.code === 0;
+		const response = await browser.runtime.sendMessage({
+			action: 'getFeishuApiHost',
+		}) as { success?: boolean; apiHost?: string };
+
+		const host = response?.success ? (response.apiHost || '') : '';
+		_feishuApiHostCache = host;
+		return host;
 	} catch {
-		return false;
+		_feishuApiHostCache = '';
+		return '';
 	}
 }
-// ─── End cookie-based image URL generation ───────────────────────────────────
 
-async function fetchUrlAsBase64(url: string): Promise<string | null> {
-	try {
-		const res = await fetch(url, { credentials: 'include' });
-		if (!res.ok) {
-			logger.warn(`fetchUrlAsBase64: HTTP ${res.status} for ${url.slice(0, 80)}...`);
-			return null;
-		}
-		const contentType = res.headers.get('Content-Type') || '';
-		if (contentType.includes('application/json') || contentType.includes('text/')) {
-			const text = await res.text();
-			logger.warn(`fetchUrlAsBase64: got non-image response (${contentType}): ${text.slice(0, 200)}`);
-			return null;
-		}
-		const mimeType = contentType.split(';')[0].trim() || 'image/png';
-		const buffer = await res.arrayBuffer();
-		const bytes = new Uint8Array(buffer);
-		let binary = '';
-		for (let i = 0; i < bytes.byteLength; i++) {
-			binary += String.fromCharCode(bytes[i]);
-		}
-		return `data:${mimeType};base64,${btoa(binary)}`;
-	} catch (err) {
-		logger.warn(`fetchUrlAsBase64: fetch error: ${String(err)}`);
-		return null;
-	}
-}
+// ─── End cookie-based image URL generation ───────────────────────────────────
 
 async function fetchFeishuImageDataUrl(fileToken: string): Promise<string | null> {
 	try {
@@ -373,23 +331,39 @@ async function resolveFeishuImages(html: string): Promise<string> {
 	const base64Results = new Map<string, string>();
 
 	// Strategy 1: cookie-based internal URL → immediately fetch binary → base64 (permanent)
-	if (typeof window !== 'undefined' && getFeishuImageApiBase()) {
+	// Read the real API host from MAIN world (window.local.apiHost), which is correct for
+	// both standard (my.feishu.cn) and custom domains (waytoagi.feishu.cn etc.)
+	if (typeof window !== 'undefined') {
+		const mainWorldHost = await readFeishuApiHostFromMainWorld();
+		// Use the page's host as the API base, matching CDC's evaluateBaseUrl logic.
+		// Requests are made in MAIN world (via background chrome.scripting) so that
+		// the page's full session cookies and Sec-Fetch-Site: same-origin are used.
+		const apiBase = (mainWorldHost || ('https://' + location.host)) + '/space';
+		logger.warn(`[img-resolve] mainWorldHost="${mainWorldHost}" apiBase="${apiBase}"`);
+
 		const tokenToCode: Record<string, string> = {};
-		const tokenUrls = new Map<string, string>();
 		for (const token of tokenList) {
-			const code = feishuBase64Url(feishuEncodeToken(token));
-			tokenToCode[token] = code;
-			tokenUrls.set(token, `${getFeishuImageApiBase()}/api/box/stream/download/asynccode/?code=${code}`);
+			tokenToCode[token] = feishuBase64Url(feishuEncodeToken(token));
 		}
-		await activateFeishuImageUrls(tokenToCode);
-		await Promise.all(
-			tokenList.map(async (token) => {
-				const dataUrl = await fetchUrlAsBase64(tokenUrls.get(token)!);
-				if (dataUrl) {
-					base64Results.set(token, dataUrl);
+
+		try {
+			const response = await browser.runtime.sendMessage({
+				action: 'fetchFeishuImagesViaMainWorld',
+				apiBase,
+				tokenToCode,
+			}) as { success: boolean; error?: string; results?: Record<string, string> };
+
+			if (response?.success && response.results) {
+				for (const [token, dataUrl] of Object.entries(response.results)) {
+					if (dataUrl) base64Results.set(token, dataUrl);
 				}
-			})
-		);
+				logger.warn(`[img-resolve] mainWorld fetched ${base64Results.size}/${tokenList.length} images`);
+			} else {
+				logger.warn(`[img-resolve] mainWorld fetch failed: ${response?.error}`);
+			}
+		} catch (err) {
+			logger.warn(`[img-resolve] mainWorld message error: ${String(err)}`);
+		}
 	}
 
 	// Strategy 2: for tokens still unresolved, fall back to Open Platform API binary download

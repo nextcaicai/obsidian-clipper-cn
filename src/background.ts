@@ -494,6 +494,166 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 			return true;
 		}
 
+		if (typedRequest.action === 'getFeishuApiHost') {
+			const tabId = sender.tab?.id;
+			if (!tabId) {
+				sendResponse({ success: false, apiHost: '' });
+				return true;
+			}
+			// Use chrome.scripting (world: MAIN) to read window.local.apiHost,
+			// which is set by the Feishu app and gives the correct internal API base.
+			// This bypasses the page CSP that blocks inline <script> injection.
+			chrome.scripting.executeScript({
+				target: { tabId },
+				world: 'MAIN',
+				func: () => ((window as any).local?.apiHost as string) || '',
+			}).then((results) => {
+				const apiHost = (results?.[0]?.result as string) || '';
+				sendResponse({ success: true, apiHost });
+			}).catch(() => {
+				sendResponse({ success: true, apiHost: '' });
+			});
+			return true;
+		}
+
+		if (typedRequest.action === 'fetchFeishuImagesViaMainWorld') {
+			const tabId = sender.tab?.id;
+			if (!tabId) {
+				sendResponse({ success: false, error: 'No tab ID' });
+				return true;
+			}
+			const apiBase = (typedRequest as any).apiBase as string;
+			const tokenToCode = (typedRequest as any).tokenToCode as Record<string, string>;
+			if (!apiBase || !tokenToCode) {
+				sendResponse({ success: false, error: 'Missing apiBase or tokenToCode' });
+				return true;
+			}
+			// Run image resolution in the page's MAIN world so we can use Feishu's
+			// runtime PageMain/imageManager APIs before falling back to copy_out.
+			// IMPORTANT: must use plain Promise chains, NOT async/await — TypeScript compiles
+			// async/await to __awaiter which is not available in the injected page context.
+			chrome.scripting.executeScript({
+				target: { tabId },
+				world: 'MAIN',
+				func: (apiBase: string, tokenToCode: Record<string, string>) => {
+					const results: Record<string, string> = {};
+					const tokens = Object.keys(tokenToCode);
+
+					const fetchDataUrl = function(url: string): Promise<string | undefined> {
+						return fetch(url).then(function(res: Response) {
+							if (!res.ok) return undefined;
+							const contentType = res.headers.get('Content-Type') || '';
+							if (contentType.indexOf('application/json') !== -1 || contentType.indexOf('text/') !== -1) {
+								return undefined;
+							}
+							const mimeType = contentType.split(';')[0].trim() || 'image/png';
+							return res.arrayBuffer().then(function(buf: ArrayBuffer) {
+								const bytes = new Uint8Array(buf);
+								let bin = '';
+								for (let i = 0; i < bytes.byteLength; i++) {
+									bin += String.fromCharCode(bytes[i]);
+								}
+								return 'data:' + mimeType + ';base64,' + btoa(bin);
+							});
+						}).catch(function() {
+							return undefined;
+						});
+					};
+
+					const runtimeImageBlocks: Array<{ token: string; block: any }> = [];
+					try {
+						const rootBlock = (window as any).PageMain?.blockManager?.rootBlockModel;
+						const seen = new Set<any>();
+						const walk = function(block: any) {
+							if (!block || seen.has(block) || seen.size > 500) return;
+							seen.add(block);
+							const imageToken = block?.snapshot?.image?.token;
+							if (imageToken && block?.imageManager?.fetch) {
+								runtimeImageBlocks.push({ token: imageToken, block });
+							}
+							const children = Array.isArray(block.children) ? block.children : [];
+							for (let i = 0; i < children.length; i++) walk(children[i]);
+						};
+						walk(rootBlock);
+					} catch {
+						// Fall through to copy_out fallback.
+					}
+
+					return runtimeImageBlocks
+						.filter(function(item) { return tokens.indexOf(item.token) !== -1; })
+						.reduce(function(chain, item) {
+							return chain.then(function() {
+								return new Promise<void>(function(resolve) {
+									try {
+										item.block.imageManager.fetch(
+											{ token: item.token, isHD: true, fuzzy: false },
+											{},
+											function(sources: any) {
+												const sourceUrl = sources?.originSrc || sources?.src || '';
+												if (!sourceUrl) {
+													resolve();
+													return;
+												}
+												fetchDataUrl(sourceUrl).then(function(dataUrl) {
+													if (dataUrl) results[item.token] = dataUrl;
+													resolve();
+												});
+											}
+										).catch(function() {
+											resolve();
+										});
+									} catch {
+										resolve();
+									}
+								});
+							});
+						}, Promise.resolve() as Promise<void | undefined>)
+						.then(function() {
+							if (Object.keys(results).length > 0) {
+								return { success: true as const, results };
+							}
+
+							const csrfMatch = /(?:^|;)\s*_csrf_token=([^;]+)/.exec(document.cookie);
+							const csrf = csrfMatch ? decodeURIComponent(csrfMatch[1]) : '';
+							return fetch(apiBase + '/api/docx/resources/copy_out', {
+								method: 'POST',
+								headers: { 'X-Csrftoken': csrf },
+								body: JSON.stringify({ tokens: tokenToCode }),
+							})
+							.then(function(res: Response) { return res.json(); })
+							.then(function(data: any): Promise<{ success: true; results: Record<string, string> }> | { success: true; results: Record<string, string> } {
+								if (data.code !== 0) {
+									throw new Error('copy_out code=' + data.code);
+								}
+								return tokens.reduce(function(chain, token) {
+									return chain.then(function() {
+										const code = tokenToCode[token];
+										return fetchDataUrl(
+											apiBase + '/api/box/stream/download/asynccode/?code=' + encodeURIComponent(code)
+										).then(function(dataUrl) {
+											if (dataUrl) results[token] = dataUrl;
+										});
+									});
+								}, Promise.resolve() as Promise<void | undefined>)
+								.then(function() {
+									return { success: true as const, results };
+								});
+							})
+							.catch(function(err: unknown) {
+								return { success: false as const, error: String(err) };
+							});
+						});
+				},
+				args: [apiBase, tokenToCode],
+			}).then((scriptResults) => {
+				const result = scriptResults?.[0]?.result as { success: boolean; error?: string; results?: Record<string, string> } | undefined;
+				sendResponse(result ?? { success: false, error: 'No script result' });
+			}).catch((err) => {
+				sendResponse({ success: false, error: String(err) });
+			});
+			return true;
+		}
+
 		if (typedRequest.action === 'fetchFeishuImage') {
 			const fileToken = (typedRequest as any).fileToken as string;
 			if (!fileToken) {

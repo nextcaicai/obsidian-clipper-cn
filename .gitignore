@@ -24,5 +24,9 @@ assets/shared
 .env
 context/
 
+# Local debugging notes/logs
+.cursor/debug-*.log
+.cursor/feishu-image-debug-notes.md
+
 # Chrome extension signing key (do not commit)
 keys/
