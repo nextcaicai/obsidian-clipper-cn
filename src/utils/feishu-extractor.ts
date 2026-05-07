@@ -311,6 +311,33 @@ async function activateFeishuImageUrls(tokenToCode: Record<string, string>): Pro
 }
 // ─── End cookie-based image URL generation ───────────────────────────────────
 
+async function fetchUrlAsBase64(url: string): Promise<string | null> {
+	try {
+		const res = await fetch(url, { credentials: 'include' });
+		if (!res.ok) {
+			logger.warn(`fetchUrlAsBase64: HTTP ${res.status} for ${url.slice(0, 80)}...`);
+			return null;
+		}
+		const contentType = res.headers.get('Content-Type') || '';
+		if (contentType.includes('application/json') || contentType.includes('text/')) {
+			const text = await res.text();
+			logger.warn(`fetchUrlAsBase64: got non-image response (${contentType}): ${text.slice(0, 200)}`);
+			return null;
+		}
+		const mimeType = contentType.split(';')[0].trim() || 'image/png';
+		const buffer = await res.arrayBuffer();
+		const bytes = new Uint8Array(buffer);
+		let binary = '';
+		for (let i = 0; i < bytes.byteLength; i++) {
+			binary += String.fromCharCode(bytes[i]);
+		}
+		return `data:${mimeType};base64,${btoa(binary)}`;
+	} catch (err) {
+		logger.warn(`fetchUrlAsBase64: fetch error: ${String(err)}`);
+		return null;
+	}
+}
+
 async function fetchFeishuImageDataUrl(fileToken: string): Promise<string | null> {
 	try {
 		const response = await browser.runtime.sendMessage({
@@ -343,25 +370,32 @@ async function resolveFeishuImages(html: string): Promise<string> {
 	const tokenList = Array.from(tokens);
 	logger.debug(`Resolving ${tokenList.length} Feishu image(s)`);
 
-	// Strategy 1: cookie-based internal URL (works for any doc the user can view, no credentials needed)
-	const cookieUrls = new Map<string, string>();
+	const base64Results = new Map<string, string>();
+
+	// Strategy 1: cookie-based internal URL → immediately fetch binary → base64 (permanent)
 	if (typeof window !== 'undefined' && getFeishuImageApiBase()) {
 		const tokenToCode: Record<string, string> = {};
+		const tokenUrls = new Map<string, string>();
 		for (const token of tokenList) {
 			const code = feishuBase64Url(feishuEncodeToken(token));
 			tokenToCode[token] = code;
-			cookieUrls.set(token, `${getFeishuImageApiBase()}/api/box/stream/download/asynccode/?code=${code}`);
+			tokenUrls.set(token, `${getFeishuImageApiBase()}/api/box/stream/download/asynccode/?code=${code}`);
 		}
-		// Activate the URLs so they're accessible (uses browser session cookies)
 		await activateFeishuImageUrls(tokenToCode);
+		await Promise.all(
+			tokenList.map(async (token) => {
+				const dataUrl = await fetchUrlAsBase64(tokenUrls.get(token)!);
+				if (dataUrl) {
+					base64Results.set(token, dataUrl);
+				}
+			})
+		);
 	}
 
-	// Strategy 2: for tokens not resolved via cookie URL, fall back to Open Platform API binary download
-	const missingTokens = tokenList.filter(t => !cookieUrls.has(t));
-	const base64Results = new Map<string, string>();
-
+	// Strategy 2: for tokens still unresolved, fall back to Open Platform API binary download
+	const missingTokens = tokenList.filter(t => !base64Results.has(t));
 	if (missingTokens.length > 0) {
-		logger.debug(`Falling back to binary download for ${missingTokens.length} image(s)`);
+		logger.debug(`Falling back to Open Platform binary download for ${missingTokens.length} image(s)`);
 		await Promise.all(
 			missingTokens.map(async (token) => {
 				const dataUrl = await fetchFeishuImageDataUrl(token);
@@ -374,7 +408,7 @@ async function resolveFeishuImages(html: string): Promise<string> {
 
 	let resolved = html;
 	for (const token of tokenList) {
-		const replacement = cookieUrls.get(token) || base64Results.get(token);
+		const replacement = base64Results.get(token);
 		if (replacement) {
 			resolved = resolved.split(`feishu-image://${token}`).join(replacement);
 		} else {
