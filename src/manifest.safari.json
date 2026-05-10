@@ -2,7 +2,7 @@
 	"manifest_version": 3,
 	"name": "obsidian-web-clipper-cn",
 	"homepage_url": "https://obsidian.md/",
-	"version": "1.4.2",
+	"version": "1.4.4",
 	"description": "Save content from the web to Obsidian, in a private and durable format you can always access offline.",
 	"permissions": [
 		"activeTab",

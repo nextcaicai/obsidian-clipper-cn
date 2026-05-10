@@ -4,7 +4,7 @@
 	"name": "obsidian-web-clipper-cn",
 	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzLc6HNkPl422OUD6qIrmnCBASPO0IzgIkLzP9xRncTiYx4ajVTUrHoIse45o7N5bYHkl3x9JV8uUgCVmC0ut59m6A7ytlNh7HY08007oi+sK1t9xqjlmOjAOd23y6s3umE37SskX1qQCgcnJtW9dN/jEc6hr5D+5T7kFsio2tkBckMUnn+Qnc4XysT81ZL0fFSscuJcWZmeHq5gYBuNnffXtpFeqgY1Nu7QuDH2OZetTYM2wVcoHd5jyo5VXiTU/H6anCd+SB6/Hwdcmf654KwLYroVBwckeGgdRbgDa4ub/AuXFJWhajDtPuq6qFssxeviigU1UVjXDuZq1kwCoHQIDAQAB",
 	"homepage_url": "https://obsidian.md/",
-	"version": "1.4.2",
+	"version": "1.4.4",
 	"description": "Save and highlight web pages in a private and durable format that you can access offline. The official extension for Obsidian.",
 	"permissions": [
 		"activeTab",
