@@ -2,7 +2,7 @@ import browser from './utils/browser-polyfill';
 import * as highlighter from './utils/highlighter';
 import { loadSettings, generalSettings } from './utils/storage-utils';
 import Defuddle from 'defuddle';
-import { getDomain } from './utils/string-utils';
+import { getDomain, normalizeImageSources } from './utils/string-utils';
 import { extractContentBySelector as extractContentBySelectorShared } from './utils/shared';
 import { createMarkdownContent } from 'defuddle/full';
 import { flattenShadowDom } from './utils/flatten-shadow-dom';
@@ -40,9 +40,31 @@ declare global {
 			const readerDoc = doc.implementation.createHTMLDocument();
 			const originalHtml = readerArticle.getAttribute('data-original-html');
 			readerDoc.body.innerHTML = originalHtml || readerArticle.innerHTML;
+			normalizeImageSources(readerDoc);
 			return new Defuddle(readerDoc, { url: '' }).parse();
 		}
+		normalizeImageSources(doc);
 		return new Defuddle(doc, { url: doc.URL }).parse();
+	}
+
+	function isWeChatArticleUrl(url: string): boolean {
+		try {
+			return new URL(url).hostname === 'mp.weixin.qq.com';
+		} catch {
+			return false;
+		}
+	}
+
+	function extractWeChatArticleContent(doc: Document): string | null {
+		const article = doc.querySelector('#js_content');
+		if (!article) {
+			return null;
+		}
+
+		const articleClone = article.cloneNode(true) as HTMLElement;
+		normalizeImageSources(articleClone as unknown as Document);
+		articleClone.querySelectorAll('script, style').forEach(el => el.remove());
+		return articleClone.outerHTML;
 	}
 
 	let isHighlighterMode = false;
@@ -326,6 +348,7 @@ declare global {
 
 				// Use parseAsync to ensure async variables like {{transcript}} are available.
 				// If it hangs (e.g. another extension has corrupted fetch), fall back to sync parse.
+				normalizeImageSources(document);
 				const defuddle = new Defuddle(document, { url: document.URL });
 				const parseTimeout = new Promise<never>((_, reject) =>
 					setTimeout(() => reject(new Error('parseAsync timeout')), 8000)
@@ -362,6 +385,7 @@ declare global {
 				const parser = new DOMParser();
 				// Parse the document's HTML
 				const doc = parser.parseFromString(document.documentElement.outerHTML, 'text/html');
+				normalizeImageSources(doc);
 
 				// Remove all script and style elements
 				doc.querySelectorAll('script, style').forEach(el => el.remove());
@@ -399,10 +423,13 @@ declare global {
 
 				// Get the modified HTML without scripts, styles, and style attributes
 				const cleanedHtml = doc.documentElement.outerHTML;
+				const weChatArticleContent = isWeChatArticleUrl(document.URL)
+					? extractWeChatArticleContent(doc)
+					: null;
 
 			const response: ContentResponse = {
 				author: bilibiliContent?.author || feishuContent?.author || defuddled.author,
-				content: bilibiliContent?.structuredHtml || feishuContent?.content || defuddled.content,
+				content: bilibiliContent?.structuredHtml || feishuContent?.content || weChatArticleContent || defuddled.content,
 				description: bilibiliContent?.description || defuddled.description,
 				domain: getDomain(document.URL),
 				extractedContent: extractedContent,

@@ -5,6 +5,7 @@ import { parseHTML } from 'linkedom';
 import DefuddleClass from 'defuddle';
 import { createMarkdownContent } from 'defuddle/full';
 import { buildVariables, generateFrontmatter, formatPropertyValue } from './shared';
+import { normalizeImageSources } from './string-utils';
 import { compileTemplate } from './template-compiler';
 import { createAsyncResolver, createSelectorProcessor } from '../api';
 
@@ -29,6 +30,7 @@ interface FixtureTemplate {
 
 async function runFixture(html: string, url: string, template: FixtureTemplate): Promise<string> {
 	const { document } = parseHTML(html);
+	normalizeImageSources(document as unknown as Document);
 
 	// Run defuddle — same as CLI
 	const defuddle = new DefuddleClass(document as unknown as Document, { url });

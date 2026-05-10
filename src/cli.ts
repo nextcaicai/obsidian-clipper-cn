@@ -3,6 +3,7 @@
 import { parseHTML } from 'linkedom';
 import { clip, matchTemplate, DocumentParser } from './api';
 import { openInObsidian } from './utils/cli-utils';
+import { normalizeImageSources } from './utils/string-utils';
 import { Template } from './types/types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -207,6 +208,7 @@ async function main(): Promise<void> {
 			if (hasSchemaTrigs) {
 				const DefuddleClass = (await import('defuddle')).default;
 				parsedDocument = linkedomParser.parseFromString(html, 'text/html');
+				normalizeImageSources((parsedDocument.documentElement || parsedDocument) as unknown as Document);
 				const defuddle = new DefuddleClass((parsedDocument.documentElement || parsedDocument) as unknown as Document, { url: args.url });
 				const defuddleResult = defuddle.parse();
 				matched = matchTemplate(templates, args.url, defuddleResult.schemaOrgData);

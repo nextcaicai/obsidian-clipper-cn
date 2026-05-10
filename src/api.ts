@@ -8,7 +8,7 @@ import { compileTemplate, SelectorProcessor } from './utils/template-compiler';
 import { AsyncResolver, RenderContext } from './utils/renderer';
 import { applyFilters } from './utils/filters';
 import { buildVariables, generateFrontmatter, extractContentBySelector, selectorContentToString, formatPropertyValue } from './utils/shared';
-import { sanitizeFileName } from './utils/string-utils';
+import { normalizeImageSources, sanitizeFileName } from './utils/string-utils';
 import { Template, Property } from './types/types';
 
 // ---------------------------------------------------------------------------
@@ -179,6 +179,7 @@ export async function clip(options: ClipOptions): Promise<ClipResult> {
 	// Use pre-parsed document if provided, otherwise parse
 	const doc = parsedDocument ?? documentParser.parseFromString(html, 'text/html');
 	const documentElement = doc.documentElement || doc;
+	normalizeImageSources(documentElement as unknown as Document);
 
 	// Extract content with defuddle
 	// Cast through unknown: linkedom's Document is structurally compatible but not nominally typed as DOM Document
