@@ -39,11 +39,30 @@
 
 > **隐私说明**：App ID 和 App Secret 仅保存在你本地浏览器的存储中（`browser.storage.local`），不会上传到任何服务器。
 
+### 微信公众号文章提取优化
+
+官方版本依赖通用正文提取器处理微信公众号文章，遇到微信的懒加载图片和动态正文结构时，常见问题是只能抓取首图或正文图片不完整。本 Fork 对 `mp.weixin.qq.com` 做了专门优化：
+
+- **完整正文容器** — 优先使用微信公众号原始正文容器 `#js_content`，避免通用正文提取器裁剪掉后续图片
+- **懒加载图片修复** — 自动识别 `data-src`、`data-original`、`data-lazy-src` 等懒加载图片地址，并补全为标准 `src`
+- **多图文章支持** — 能保留正文中的多张 `mmbiz.qpic.cn` 图片，不再只抓取第一张图
+- **跨入口一致** — 浏览器扩展、CLI 和程序化 API 都会先归一化图片地址，减少不同入口输出不一致的问题
+
 ### 为什么没有合并到官方项目？
 
 官方维护者[指出](https://github.com/obsidianmd/obsidian-clipper/pull/1)，针对特定网站的内容提取器应该在 [Defuddle](https://github.com/kepano/defuddle)（内容提取库）中实现，而不是在 Web Clipper 扩展本身。由于将 Bilibili 支持集成到 Defuddle 需要不同的架构方案，本 Fork 独立维护此功能，方便有需要的用户直接使用。
 
 ## 快速开始
+
+### 直接下载压缩包
+
+如果只是想安装使用，可以前往本仓库的 [Releases](https://github.com/nextcaicai/obsidian-clipper-cn/releases) 页面下载对应浏览器的压缩包：
+
+- `obsidian-clipper-cn-*-chrome.zip` — Chrome、Brave、Edge、Arc 等 Chromium 浏览器
+- `obsidian-clipper-cn-*-firefox.zip` — Firefox
+- `obsidian-clipper-cn-*-safari.zip` — Safari
+
+下载后解压，再按下面的本地安装步骤加载对应目录。
 
 ### 从源码构建
 

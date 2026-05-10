@@ -39,11 +39,30 @@ The official version extracts Feishu document content via generic DOM parsing, w
 
 > **Privacy note**: App ID and App Secret are stored only in your local browser storage (`browser.storage.local`) and are never sent to any third-party server.
 
+### WeChat Official Account article extraction
+
+The official version relies on the generic content extractor for WeChat Official Account articles. Because WeChat uses lazy-loaded images and a dynamic article structure, clipping can miss most body images and keep only the first one. This fork adds dedicated handling for `mp.weixin.qq.com`:
+
+- **Full article container** — Uses WeChat's original `#js_content` article container to avoid generic extraction trimming later images
+- **Lazy-loaded image normalization** — Detects image URLs from `data-src`, `data-original`, `data-lazy-src`, and similar attributes, then restores them as standard `src` values
+- **Multi-image article support** — Preserves multiple `mmbiz.qpic.cn` images in the article body instead of only clipping the first image
+- **Consistent extraction paths** — Normalizes image sources across the browser extension, CLI, and programmatic API to reduce output differences between entry points
+
 ### Why not merged upstream?
 
 The official maintainer [indicated](https://github.com/obsidianmd/obsidian-clipper/pull/1) that site-specific content extractors should be implemented in [Defuddle](https://github.com/kepano/defuddle) (the content extraction library), not in the Web Clipper extension itself. Since integrating Bilibili support into Defuddle would require a different architectural approach, this fork maintains the feature independently for users who need it now.
 
 ## Get started
+
+### Download a release package
+
+If you only want to install and use the extension, download the package for your browser from this repository's [Releases](https://github.com/nextcaicai/obsidian-clipper-cn/releases) page:
+
+- `obsidian-clipper-cn-*-chrome.zip` — Chrome, Brave, Edge, Arc, and other Chromium browsers
+- `obsidian-clipper-cn-*-firefox.zip` — Firefox
+- `obsidian-clipper-cn-*-safari.zip` — Safari
+
+After downloading, unzip the package and follow the local installation steps below for the corresponding browser.
 
 ### Build from source
 
