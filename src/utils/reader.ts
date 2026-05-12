@@ -951,12 +951,14 @@ export class Reader {
 
 		const createOutlineObserver = () => {
 			const stickyOffset = this.getStickyOffset();
+			const viewportHeight = Math.max(1, window.innerHeight || 1);
 			const topPercent = stickyOffset > 0
-				? Math.round(stickyOffset / window.innerHeight * 100 + 2)
+				? Math.min(80, Math.max(5, Math.round(stickyOffset / viewportHeight * 100 + 2)))
 				: 5;
-			const bottomPercent = 100 - topPercent - 15;
+			const bottomPercent = Math.max(0, 100 - topPercent - 15);
+			const rootMargin = `-${topPercent}% 0px -${bottomPercent}% 0px`;
 			return new IntersectionObserver(observerCallback, {
-				rootMargin: `-${topPercent}% 0px -${bottomPercent}% 0px`,
+				rootMargin,
 				threshold: 0
 			});
 		};
@@ -2120,6 +2122,7 @@ export class Reader {
 
 			// Capture Bilibili video state before cleanup destroys the player
 			const isBilibili = host.includes('bilibili.com');
+			const bilibiliBrowserType = isBilibili ? await detectBrowser() : '';
 			let bilibiliVideoId = '';
 			let bilibiliPage = '1';
 			let bilibiliTimestamp = 0;
@@ -2523,19 +2526,36 @@ export class Reader {
 				});
 				const embedUrl = 'https://player.bilibili.com/player.html?' + params.toString();
 
-				const bBrowserType = browserType || await detectBrowser();
+				const bBrowserType = browserType || bilibiliBrowserType || await detectBrowser();
 				const isSafari = ['safari', 'mobile-safari', 'ipad-os'].includes(bBrowserType);
 
 				const playerContainer = doc.createElement('div');
 				playerContainer.className = 'player-container' + (this.settings.pinPlayer ? ' pin-player' : '');
 
-				if (isSafari) {
+				if (bilibiliVideoElement) {
+					const videoWrapper = doc.createElement('div');
+					videoWrapper.className = 'reader-video-wrapper';
+					bilibiliVideoElement.classList.add('reader-video-player');
+					bilibiliVideoElement.controls = true;
+					videoWrapper.appendChild(bilibiliVideoElement);
+					playerContainer.appendChild(videoWrapper);
+					if (bilibiliTimestamp > 0) {
+						try {
+							bilibiliVideoElement.currentTime = bilibiliTimestamp;
+						} catch {}
+					}
+					if (bilibiliVideoWasPlaying) {
+						const playPromise = bilibiliVideoElement.play();
+						if (playPromise?.catch) playPromise.catch(() => {});
+					}
+				} else if (isSafari) {
 					const watchUrl = doc.URL;
 					const thumbnail = doc.createElement('a');
 					thumbnail.href = watchUrl;
 					thumbnail.target = '_blank';
 					thumbnail.rel = 'noopener';
 					thumbnail.className = 'reader-video-wrapper';
+					thumbnail.style.cssText = 'display:block;position:relative;aspect-ratio:16/9;max-width:100%;background:#000;border-radius:8px;overflow:hidden;';
 					const imgSrc = bilibiliThumbnail || '';
 					thumbnail.innerHTML =
 						'<img src="' + imgSrc + '" style="width:100%;height:100%;object-fit:cover;mix-blend-mode:normal!important;">'
@@ -2544,31 +2564,13 @@ export class Reader {
 						+ '<path d="M45 24L27 14v20" fill="white"/></svg>';
 					playerContainer.appendChild(thumbnail);
 				} else {
-					if (bilibiliVideoElement) {
-						const videoWrapper = doc.createElement('div');
-						videoWrapper.className = 'reader-video-wrapper';
-						bilibiliVideoElement.classList.add('reader-video-player');
-						bilibiliVideoElement.controls = true;
-						videoWrapper.appendChild(bilibiliVideoElement);
-						playerContainer.appendChild(videoWrapper);
-						if (bilibiliTimestamp > 0) {
-							try {
-								bilibiliVideoElement.currentTime = bilibiliTimestamp;
-							} catch {}
-						}
-						if (bilibiliVideoWasPlaying) {
-							const playPromise = bilibiliVideoElement.play();
-							if (playPromise?.catch) playPromise.catch(() => {});
-						}
-					} else {
-						const iframe = doc.createElement('iframe');
-						iframe.src = embedUrl;
-						iframe.setAttribute('allowfullscreen', '');
-						iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
-						iframe.setAttribute('scrolling', 'no');
-						playerContainer.appendChild(iframe);
-						await browser.runtime.sendMessage({ action: 'enableBilibiliEmbedRule' }).catch(() => {});
-					}
+					const iframe = doc.createElement('iframe');
+					iframe.src = embedUrl;
+					iframe.setAttribute('allowfullscreen', '');
+					iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+					iframe.setAttribute('scrolling', 'no');
+					playerContainer.appendChild(iframe);
+					await browser.runtime.sendMessage({ action: 'enableBilibiliEmbedRule' }).catch(() => {});
 				}
 
 				// Toggle bar with pin-player control
