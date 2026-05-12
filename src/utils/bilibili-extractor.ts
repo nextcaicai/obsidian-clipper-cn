@@ -372,6 +372,19 @@ async function fetchBilibiliJson(url: string): Promise<any> {
 	return response.data;
 }
 
+async function fetchBilibiliJsonViaMainWorld(url: string): Promise<any> {
+	const response = await browser.runtime.sendMessage({
+		action: 'fetchBilibiliJsonViaMainWorld',
+		url
+	}) as { success?: boolean; data?: any; error?: string };
+
+	if (!response?.success) {
+		throw new Error(response?.error || 'Failed to fetch Bilibili data via page context');
+	}
+
+	return response.data;
+}
+
 /**
  * 拉取播放器接口数据，并兼容新旧接口回退。
  */
@@ -404,6 +417,18 @@ async function fetchBilibiliPlayerData(input: {
 		try {
 			const data = await fetchBilibiliJson(url);
 			if (data?.data) {
+				const subtitleCount = data.data?.subtitle?.subtitles?.length || 0;
+				if (subtitleCount === 0) {
+					try {
+						const pageContextData = await fetchBilibiliJsonViaMainWorld(url);
+						const pageContextSubtitleCount = pageContextData?.data?.subtitle?.subtitles?.length || 0;
+						if (pageContextSubtitleCount > 0) {
+							return pageContextData.data as BilibiliPlayerData;
+						}
+					} catch {
+						// Keep trying the next endpoint.
+					}
+				}
 				return data.data as BilibiliPlayerData;
 			}
 		} catch {

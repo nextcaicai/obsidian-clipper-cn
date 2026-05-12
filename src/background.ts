@@ -11,6 +11,30 @@ const bgLogger = createLogger('Background');
 const YOUTUBE_EMBED_RULE_ID = 9001;
 const BILIBILI_EMBED_RULE_ID = 9002;
 
+function fetchBilibiliJsonViaMainWorld(tabId: number, url: string): Promise<any> {
+	if (!isAllowedBilibiliFetchUrl(url)) {
+		return Promise.reject(new Error('Blocked Bilibili fetch URL'));
+	}
+
+	return chrome.scripting.executeScript({
+		target: { tabId },
+		world: 'MAIN',
+		func: (url: string) => fetch(url, {
+			method: 'GET',
+			credentials: 'include',
+			cache: 'no-store'
+		}).then((response: Response) => {
+			if (!response.ok) {
+				throw new Error(`Bilibili page-context fetch failed with status ${response.status}`);
+			}
+			return response.json();
+		}),
+		args: [url],
+	}).then((results) => {
+		return results?.[0]?.result;
+	});
+}
+
 // Chrome: declarativeNetRequest to rewrite Referer on YouTube embeds.
 // Safari/Firefox use the native video element instead (see reader.ts).
 async function enableYouTubeEmbedRule(tabId: number): Promise<void> {
@@ -377,6 +401,23 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 	if (typeof request === 'object' && request !== null) {
 		const typedRequest = request as { action: string; isActive?: boolean; hasHighlights?: boolean; tabId?: number; text?: string; section?: string; url?: string };
 		
+		if (typedRequest.action === 'fetchBilibiliJsonViaMainWorld' && typedRequest.url) {
+			const tabId = sender.tab?.id;
+			if (!tabId) {
+				sendResponse({ success: false, error: 'No tab ID' });
+				return true;
+			}
+			fetchBilibiliJsonViaMainWorld(tabId, typedRequest.url).then((data) => {
+				sendResponse({ success: true, data });
+			}).catch((error) => {
+				sendResponse({
+					success: false,
+					error: error instanceof Error ? error.message : String(error)
+				});
+			});
+			return true;
+		}
+
 		if (typedRequest.action === 'copy-to-clipboard' && typedRequest.text) {
 			// Use content script to copy to clipboard
 			browser.tabs.query({active: true, currentWindow: true}).then(async (tabs) => {
