@@ -35,10 +35,15 @@ let templates: Template[] = [];
 let currentVariables: { [key: string]: string } = {};
 let currentTabId: number | undefined;
 let lastSelectedVault: string | null = null;
+let noteContentLoadingId = 0;
+let activeNoteContentLoadingId: number | null = null;
+let activeNoteContentLoadingUrl = '';
+let noteContentImageWaitTimer: number | undefined;
 
 const isSidePanel = window.location.pathname.includes('side-panel.html');
 const urlParams = new URLSearchParams(window.location.search);
 const isIframe = urlParams.get('context') === 'iframe';
+const FEISHU_IMAGE_WAIT_MS = 3000;
 
 // Memoize compileTemplate with a short expiration and URL-sensitive key
 const memoizedCompileTemplate = memoizeWithExpiration(
@@ -69,6 +74,88 @@ function getPropertiesFromDOM(): Property[] {
 			value: inputElement.type === 'checkbox' ? inputElement.checked : inputElement.value
 		};
 	}) as Property[];
+}
+
+function getNoteContentField(): HTMLTextAreaElement | null {
+	return document.getElementById('note-content-field') as HTMLTextAreaElement | null;
+}
+
+function setNoteContentPlaceholder(messageKey: string): void {
+	const noteContentField = getNoteContentField();
+	if (!noteContentField) return;
+	noteContentField.placeholder = getMessage(messageKey);
+}
+
+function startNoteContentLoading(url: string): number {
+	const loadingId = ++noteContentLoadingId;
+	activeNoteContentLoadingId = loadingId;
+	activeNoteContentLoadingUrl = url;
+	clearNoteContentImageWaitTimer();
+
+	const noteContentField = getNoteContentField();
+	if (noteContentField) {
+		noteContentField.setAttribute('aria-busy', 'true');
+		noteContentField.placeholder = getMessage('clippingContent');
+	}
+
+	return loadingId;
+}
+
+function stopNoteContentLoading(loadingId: number): void {
+	if (activeNoteContentLoadingId !== loadingId) return;
+
+	activeNoteContentLoadingId = null;
+	activeNoteContentLoadingUrl = '';
+	clearNoteContentImageWaitTimer();
+
+	const noteContentField = getNoteContentField();
+	if (noteContentField) {
+		noteContentField.removeAttribute('aria-busy');
+		noteContentField.placeholder = getMessage('notesAboutPage');
+	}
+}
+
+function clearNoteContentImageWaitTimer(): void {
+	if (noteContentImageWaitTimer !== undefined) {
+		window.clearTimeout(noteContentImageWaitTimer);
+		noteContentImageWaitTimer = undefined;
+	}
+}
+
+function isFeishuDocUrlForPopup(url: string): boolean {
+	try {
+		const parsed = new URL(url);
+		const isFeishuHost = parsed.hostname.endsWith('.feishu.cn') || parsed.hostname.endsWith('.larksuite.com');
+		return isFeishuHost && /^\/(wiki|docx|docs?)\/[\w-]+/.test(parsed.pathname);
+	} catch {
+		return false;
+	}
+}
+
+function urlsMatchForClipping(firstUrl: string, secondUrl: string): boolean {
+	try {
+		const first = new URL(firstUrl);
+		const second = new URL(secondUrl);
+		return first.origin === second.origin && first.pathname === second.pathname && first.search === second.search;
+	} catch {
+		return firstUrl === secondUrl;
+	}
+}
+
+function handleFeishuImageClippingStarted(request: any, sender: browser.Runtime.MessageSender): void {
+	const imageCount = Number(request.imageCount || 0);
+	if (imageCount <= 0 || activeNoteContentLoadingId === null) return;
+	const senderTabMatches = sender.tab?.id !== undefined && currentTabId !== undefined && sender.tab.id === currentTabId;
+	if (sender.tab?.id !== undefined && currentTabId !== undefined && !senderTabMatches) return;
+	if (!senderTabMatches && request.url && activeNoteContentLoadingUrl && !urlsMatchForClipping(request.url, activeNoteContentLoadingUrl)) return;
+	if (!isFeishuDocUrlForPopup(activeNoteContentLoadingUrl)) return;
+
+	clearNoteContentImageWaitTimer();
+	noteContentImageWaitTimer = window.setTimeout(() => {
+		if (activeNoteContentLoadingId !== null) {
+			setNoteContentPlaceholder('clippingManyImages');
+		}
+	}, FEISHU_IMAGE_WAIT_MS);
 }
 
 // Helper function to get tab info from background script
@@ -251,6 +338,8 @@ function setupMessageListeners() {
 					refreshFields(currentTabId);
 				}
 			}
+		} else if (request.action === "feishuImageClippingStarted") {
+			handleFeishuImageClippingStarted(request, sender);
 		} else if (request.action === "activeTabChanged") {
 			// Only handle active tab changes if we're in side panel mode, not iframe mode
 			if (!isIframe) {
@@ -653,6 +742,7 @@ async function refreshFields(tabId: number, { checkTemplateTriggers = true, rebu
 		return;
 	}
 
+	let loadingId: number | null = null;
 	try {
 		const tab = await getTabInfo(tabId);
 		if (!tab.url || isBlankPage(tab.url)) {
@@ -667,6 +757,8 @@ async function refreshFields(tabId: number, { checkTemplateTriggers = true, rebu
 			showError('pageCannotBeClipped');
 			return;
 		}
+
+		loadingId = startNoteContentLoading(tab.url);
 
 		// Start content extraction (don't await yet)
 		const extractionPromise = memoizedExtractPageContent(tabId);
@@ -736,6 +828,10 @@ async function refreshFields(tabId: number, { checkTemplateTriggers = true, rebu
 		console.error('Error refreshing fields:', error);
 		const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
 		showError(errorMessage);
+	} finally {
+		if (loadingId !== null) {
+			stopNoteContentLoading(loadingId);
+		}
 	}
 }
 

@@ -516,6 +516,12 @@
 	"notesAboutPage": {
 		"message": "Notes about this page..."
 	},
+	"clippingContent": {
+		"message": "Clipping content..."
+	},
+	"clippingManyImages": {
+		"message": "Clipping many images. Please wait..."
+	},
 	"onlyHttpSupported": {
 		"message": "This page cannot be clipped. Only http and https URLs are supported."
 	},

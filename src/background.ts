@@ -588,13 +588,18 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 								return undefined;
 							}
 							const mimeType = contentType.split(';')[0].trim() || 'image/png';
-							return res.arrayBuffer().then(function(buf: ArrayBuffer) {
-								const bytes = new Uint8Array(buf);
-								let bin = '';
-								for (let i = 0; i < bytes.byteLength; i++) {
-									bin += String.fromCharCode(bytes[i]);
-								}
-								return 'data:' + mimeType + ';base64,' + btoa(bin);
+							return res.blob().then(function(blob: Blob) {
+								const typedBlob = blob.type ? blob : new Blob([blob], { type: mimeType });
+								return new Promise<string | undefined>(function(resolve) {
+									const reader = new FileReader();
+									reader.onloadend = function() {
+										resolve(typeof reader.result === 'string' ? reader.result : undefined);
+									};
+									reader.onerror = function() {
+										resolve(undefined);
+									};
+									reader.readAsDataURL(typedBlob);
+								});
 							});
 						}).catch(function() {
 							return undefined;
@@ -620,35 +625,56 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 						// Fall through to copy_out fallback.
 					}
 
-					return runtimeImageBlocks
-						.filter(function(item) { return tokens.indexOf(item.token) !== -1; })
-						.reduce(function(chain, item) {
-							return chain.then(function() {
-								return new Promise<void>(function(resolve) {
-									try {
-										item.block.imageManager.fetch(
-											{ token: item.token, isHD: true, fuzzy: false },
-											{},
-											function(sources: any) {
-												const sourceUrl = sources?.originSrc || sources?.src || '';
-												if (!sourceUrl) {
-													resolve();
-													return;
-												}
-												fetchDataUrl(sourceUrl).then(function(dataUrl) {
-													if (dataUrl) results[item.token] = dataUrl;
-													resolve();
-												});
-											}
-										).catch(function() {
+					const runWithConcurrency = function<T>(
+						items: T[],
+						limit: number,
+						worker: (item: T) => Promise<void>
+					): Promise<void> {
+						let nextIndex = 0;
+						const workerCount = Math.min(limit, items.length);
+						const runNext = function(): Promise<void> {
+							if (nextIndex >= items.length) return Promise.resolve();
+							const item = items[nextIndex++];
+							return worker(item).then(runNext);
+						};
+						const workers: Array<Promise<void>> = [];
+						for (let i = 0; i < workerCount; i++) {
+							workers.push(runNext());
+						}
+						return Promise.all(workers).then(function() {});
+					};
+
+					const fetchRuntimeImage = function(item: { token: string; block: any }): Promise<void> {
+						return new Promise<void>(function(resolve) {
+							try {
+								item.block.imageManager.fetch(
+									{ token: item.token, isHD: true, fuzzy: false },
+									{},
+									function(sources: any) {
+										const sourceUrl = sources?.originSrc || sources?.src || '';
+										if (!sourceUrl) {
+											resolve();
+											return;
+										}
+										fetchDataUrl(sourceUrl).then(function(dataUrl) {
+											if (dataUrl) results[item.token] = dataUrl;
 											resolve();
 										});
-									} catch {
-										resolve();
 									}
+								).catch(function() {
+									resolve();
 								});
-							});
-						}, Promise.resolve() as Promise<void | undefined>)
+							} catch {
+								resolve();
+							}
+						});
+					};
+
+					return runWithConcurrency(
+						runtimeImageBlocks.filter(function(item) { return tokens.indexOf(item.token) !== -1; }),
+						4,
+						fetchRuntimeImage
+					)
 						.then(function() {
 							if (Object.keys(results).length > 0) {
 								return { success: true as const, results };
@@ -666,16 +692,14 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 								if (data.code !== 0) {
 									throw new Error('copy_out code=' + data.code);
 								}
-								return tokens.reduce(function(chain, token) {
-									return chain.then(function() {
-										const code = tokenToCode[token];
-										return fetchDataUrl(
-											apiBase + '/api/box/stream/download/asynccode/?code=' + encodeURIComponent(code)
-										).then(function(dataUrl) {
-											if (dataUrl) results[token] = dataUrl;
-										});
+								return runWithConcurrency(tokens, 4, function(token) {
+									const code = tokenToCode[token];
+									return fetchDataUrl(
+										apiBase + '/api/box/stream/download/asynccode/?code=' + encodeURIComponent(code)
+									).then(function(dataUrl) {
+										if (dataUrl) results[token] = dataUrl;
 									});
-								}, Promise.resolve() as Promise<void | undefined>)
+								})
 								.then(function() {
 									return { success: true as const, results };
 								});

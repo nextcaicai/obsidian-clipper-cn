@@ -304,14 +304,26 @@ async function fetchFeishuImageDataUrl(fileToken: string): Promise<string | null
 		}) as { success?: boolean; dataUrl?: string; error?: string };
 
 		if (!response?.success || !response.dataUrl) {
-			logger.warn(`Image binary fetch failed [${fileToken}]: ${response?.error}`);
+			logger.debug(`Image binary fetch failed [${fileToken}]: ${response?.error}`);
 			return null;
 		}
 		return response.dataUrl;
 	} catch (err) {
-		logger.warn(`Image binary fetch error [${fileToken}]: ${String(err)}`);
+		logger.debug(`Image binary fetch error [${fileToken}]: ${String(err)}`);
 		return null;
 	}
+}
+
+function notifyFeishuImageClippingStarted(imageCount: number): void {
+	if (typeof window === 'undefined' || imageCount <= 0) return;
+
+	browser.runtime.sendMessage({
+		action: 'feishuImageClippingStarted',
+		imageCount,
+		url: window.location.href,
+	}).catch(() => {
+		// Popup may not be open; progress notifications are best-effort only.
+	});
 }
 
 async function resolveFeishuImages(html: string): Promise<string> {
@@ -327,6 +339,7 @@ async function resolveFeishuImages(html: string): Promise<string> {
 
 	const tokenList = Array.from(tokens);
 	logger.debug(`Resolving ${tokenList.length} Feishu image(s)`);
+	notifyFeishuImageClippingStarted(tokenList.length);
 
 	const base64Results = new Map<string, string>();
 
@@ -339,7 +352,7 @@ async function resolveFeishuImages(html: string): Promise<string> {
 		// Requests are made in MAIN world (via background chrome.scripting) so that
 		// the page's full session cookies and Sec-Fetch-Site: same-origin are used.
 		const apiBase = (mainWorldHost || ('https://' + location.host)) + '/space';
-		logger.warn(`[img-resolve] mainWorldHost="${mainWorldHost}" apiBase="${apiBase}"`);
+		logger.debug(`[img-resolve] mainWorldHost="${mainWorldHost}" apiBase="${apiBase}"`);
 
 		const tokenToCode: Record<string, string> = {};
 		for (const token of tokenList) {
@@ -357,12 +370,12 @@ async function resolveFeishuImages(html: string): Promise<string> {
 				for (const [token, dataUrl] of Object.entries(response.results)) {
 					if (dataUrl) base64Results.set(token, dataUrl);
 				}
-				logger.warn(`[img-resolve] mainWorld fetched ${base64Results.size}/${tokenList.length} images`);
+				logger.debug(`[img-resolve] mainWorld fetched ${base64Results.size}/${tokenList.length} images`);
 			} else {
-				logger.warn(`[img-resolve] mainWorld fetch failed: ${response?.error}`);
+				logger.debug(`[img-resolve] mainWorld fetch failed: ${response?.error}`);
 			}
 		} catch (err) {
-			logger.warn(`[img-resolve] mainWorld message error: ${String(err)}`);
+			logger.debug(`[img-resolve] mainWorld message error: ${String(err)}`);
 		}
 	}
 
