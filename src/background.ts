@@ -611,7 +611,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 						const rootBlock = (window as any).PageMain?.blockManager?.rootBlockModel;
 						const seen = new Set<any>();
 						const walk = function(block: any) {
-							if (!block || seen.has(block) || seen.size > 500) return;
+							if (!block || seen.has(block)) return;
 							seen.add(block);
 							const imageToken = block?.snapshot?.image?.token;
 							if (imageToken && block?.imageManager?.fetch) {
@@ -676,7 +676,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 						fetchRuntimeImage
 					)
 						.then(function() {
-							if (Object.keys(results).length > 0) {
+							if (Object.keys(results).length === tokens.length) {
 								return { success: true as const, results };
 							}
 
@@ -687,26 +687,30 @@ browser.runtime.onMessage.addListener((request: unknown, sender: browser.Runtime
 								headers: { 'X-Csrftoken': csrf },
 								body: JSON.stringify({ tokens: tokenToCode }),
 							})
-							.then(function(res: Response) { return res.json(); })
-							.then(function(data: any): Promise<{ success: true; results: Record<string, string> }> | { success: true; results: Record<string, string> } {
-								if (data.code !== 0) {
-									throw new Error('copy_out code=' + data.code);
-								}
-								return runWithConcurrency(tokens, 4, function(token) {
-									const code = tokenToCode[token];
-									return fetchDataUrl(
-										apiBase + '/api/box/stream/download/asynccode/?code=' + encodeURIComponent(code)
-									).then(function(dataUrl) {
-										if (dataUrl) results[token] = dataUrl;
-									});
+								.then(function(res: Response) { return res.json(); })
+								.then(function(data: any): Promise<{ success: true; results: Record<string, string> }> | { success: true; results: Record<string, string> } {
+									if (data.code !== 0) {
+										throw new Error('copy_out code=' + data.code);
+									}
+									const missingTokens = tokens.filter(function(token) { return !results[token]; });
+									return runWithConcurrency(missingTokens, 4, function(token) {
+										const code = tokenToCode[token];
+										return fetchDataUrl(
+											apiBase + '/api/box/stream/download/asynccode/?code=' + encodeURIComponent(code)
+										).then(function(dataUrl) {
+											if (dataUrl) results[token] = dataUrl;
+										});
+									})
+										.then(function() {
+											return { success: true as const, results };
+										});
 								})
-								.then(function() {
-									return { success: true as const, results };
+								.catch(function(err: unknown) {
+									if (Object.keys(results).length > 0) {
+										return { success: true as const, results };
+									}
+									return { success: false as const, error: String(err) };
 								});
-							})
-							.catch(function(err: unknown) {
-								return { success: false as const, error: String(err) };
-							});
 						});
 				},
 				args: [apiBase, tokenToCode],
