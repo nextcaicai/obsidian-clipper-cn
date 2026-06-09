@@ -54,19 +54,48 @@
 
 ## 快速开始
 
-### 直接下载压缩包
+> **普通用户请走「方式一」**：不需要安装 Node.js，也不需要运行 `npm` 命令。
 
-如果只是想安装使用，可以前往本仓库的 [Releases](https://github.com/nextcaicai/obsidian-clipper-cn/releases) 页面下载对应浏览器的压缩包：
+### 方式一：下载 Release 压缩包（推荐）
+
+前往本仓库的 [Releases](https://github.com/nextcaicai/obsidian-clipper-cn/releases) 页面，下载对应浏览器的压缩包：
 
 - `obsidian-clipper-cn-*-chrome.zip` — Chrome、Brave、Edge、Arc 等 Chromium 浏览器
 - `obsidian-clipper-cn-*-firefox.zip` — Firefox
 - `obsidian-clipper-cn-*-safari.zip` — Safari
 
-下载后解压，再按下面的本地安装步骤加载对应目录。
+下载后解压到一个文件夹（例如 `C:\Users\你的用户名\Desktop\obsidian-clipper-cn-firefox`）。解压后应能直接看到 `manifest.json`，**不需要再执行 `npm install` 或 `npm run build`**。
 
-### 从源码构建
+**Chromium 浏览器**（Chrome、Brave、Edge、Arc）：
+
+1. 打开浏览器访问 `chrome://extensions`
+2. 开启 **开发者模式**
+3. 点击 **加载已解压的扩展程序**，选择**刚才解压出来的那个文件夹**（里面有 `manifest.json`）
+
+**Firefox**：
+
+1. 打开 Firefox 访问 `about:debugging#/runtime/this-firefox`
+2. 点击 **临时载入附加组件**
+3. 进入**刚才解压出来的那个文件夹**，选择其中的 `manifest.json` 文件
+
+如需在 Firefox 中永久安装，可使用 Nightly 或 Developer 版本：
+
+1. 地址栏输入 `about:config`
+2. 搜索 `xpinstall.signatures.required`
+3. 双击将其设为 `false`
+4. 前往 `about:addons` > 齿轮图标 > **从文件安装附加组件…**，选择解压后的 `.zip` 文件或 `manifest.json`
+
+### 方式二：从源码构建（开发者）
+
+**前置条件**：已安装 [Node.js](https://nodejs.org/)（建议 18 或更高版本）。
+
+1. 克隆或下载本仓库源码（不要只复制 README 文件）
+2. 在终端中**进入项目根目录**（该目录下应有 `package.json`）
 
 ```bash
+# 示例：如果你把源码解压到了桌面
+cd C:\Users\你的用户名\Desktop\obsidian-clipper-cn-main
+
 npm install
 npm run build
 ```
@@ -76,26 +105,9 @@ npm run build
 - `dist_firefox/` — Firefox 版本
 - `dist_safari/` — Safari 版本
 
-### 本地安装扩展
+构建完成后，按方式一的步骤安装，但选择对应的构建目录（Chromium 选 `dist/`，Firefox 选 `dist_firefox/` 里的 `manifest.json`）。
 
-**Chromium 浏览器**（Chrome、Brave、Edge、Arc）：
-
-1. 打开浏览器访问 `chrome://extensions`
-2. 开启 **开发者模式**
-3. 点击 **加载已解压的扩展程序**，选择 `dist` 目录
-
-**Firefox**：
-
-1. 打开 Firefox 访问 `about:debugging#/runtime/this-firefox`
-2. 点击 **临时载入附加组件**
-3. 进入 `dist_firefox` 目录，选择 `manifest.json` 文件
-
-如需在 Firefox 中永久安装，可使用 Nightly 或 Developer 版本：
-
-1. 地址栏输入 `about:config`
-2. 搜索 `xpinstall.signatures.required`
-3. 双击将其设为 `false`
-4. 前往 `about:addons` > 齿轮图标 > **从文件安装附加组件…**
+**常见错误**：在桌面或解压目录外运行 `npm install`，会报 `Could not read package.json`。请先 `cd` 到包含 `package.json` 的项目根目录再执行命令。
 
 ## 许可证
 

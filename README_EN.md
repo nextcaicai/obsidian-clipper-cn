@@ -54,19 +54,48 @@ The official maintainer [indicated](https://github.com/obsidianmd/obsidian-clipp
 
 ## Get started
 
-### Download a release package
+> **Most users should follow Method 1**: no Node.js install and no `npm` commands required.
 
-If you only want to install and use the extension, download the package for your browser from this repository's [Releases](https://github.com/nextcaicai/obsidian-clipper-cn/releases) page:
+### Method 1: Download a release package (recommended)
+
+Download the package for your browser from this repository's [Releases](https://github.com/nextcaicai/obsidian-clipper-cn/releases) page:
 
 - `obsidian-clipper-cn-*-chrome.zip` — Chrome, Brave, Edge, Arc, and other Chromium browsers
 - `obsidian-clipper-cn-*-firefox.zip` — Firefox
 - `obsidian-clipper-cn-*-safari.zip` — Safari
 
-After downloading, unzip the package and follow the local installation steps below for the corresponding browser.
+Unzip it to a folder (for example, `C:\Users\YourName\Desktop\obsidian-clipper-cn-firefox`). You should see `manifest.json` directly inside that folder. **Do not run `npm install` or `npm run build`.**
 
-### Build from source
+For Chromium browsers (Chrome, Brave, Edge, Arc):
+
+1. Open your browser and navigate to `chrome://extensions`
+2. Enable **Developer mode**
+3. Click **Load unpacked** and select **the folder you just unzipped** (the one containing `manifest.json`)
+
+For Firefox:
+
+1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
+2. Click **Load Temporary Add-on**
+3. Open **the folder you just unzipped** and select its `manifest.json` file
+
+To install permanently on Firefox Nightly or Developer Edition:
+
+1. Type `about:config` in the URL bar
+2. Search for `xpinstall.signatures.required`
+3. Double-click to set it to `false`
+4. Go to `about:addons` > gear icon > **Install Add-on From File…** and select the unzipped `.zip` file or `manifest.json`
+
+### Method 2: Build from source (developers)
+
+**Prerequisites**: [Node.js](https://nodejs.org/) 18 or newer.
+
+1. Clone or download the full repository source (not just the README file)
+2. Open a terminal in the **project root** (the directory that contains `package.json`)
 
 ```bash
+# Example on Windows if you unzipped the source to Desktop
+cd C:\Users\YourName\Desktop\obsidian-clipper-cn-main
+
 npm install
 npm run build
 ```
@@ -76,26 +105,9 @@ Build outputs:
 - `dist_firefox/` — Firefox version
 - `dist_safari/` — Safari version
 
-### Install the extension locally
+After building, install the extension using Method 1, but select the build output directory instead (Chromium: `dist/`; Firefox: `manifest.json` inside `dist_firefox/`).
 
-For Chromium browsers (Chrome, Brave, Edge, Arc):
-
-1. Open your browser and navigate to `chrome://extensions`
-2. Enable **Developer mode**
-3. Click **Load unpacked** and select the `dist` directory
-
-For Firefox:
-
-1. Open Firefox and navigate to `about:debugging#/runtime/this-firefox`
-2. Click **Load Temporary Add-on**
-3. Navigate to the `dist_firefox` directory and select the `manifest.json` file
-
-To install permanently on Firefox Nightly or Developer Edition:
-
-1. Type `about:config` in the URL bar
-2. Search for `xpinstall.signatures.required`
-3. Double-click to set it to `false`
-4. Go to `about:addons` > gear icon > **Install Add-on From File…**
+**Common mistake**: running `npm install` from Desktop or outside the project folder causes `Could not read package.json`. Run `cd` into the project root first.
 
 ## License
 
