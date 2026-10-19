@@ -14,7 +14,13 @@ let lastRequestTime = 0;
 // Store event listeners for cleanup
 const eventListeners = new WeakMap<HTMLElement, { [key: string]: EventListener }>();
 
-export async function sendToLLM(promptContext: string, content: string, promptVariables: PromptVariable[], model: ModelConfig): Promise<{ promptResponses: any[] }> {
+export async function sendToLLM(
+	promptContext: string,
+	content: string,
+	promptVariables: PromptVariable[],
+	model: ModelConfig,
+	options: { maxTokens?: number; systemInstruction?: string } = {}
+): Promise<{ promptResponses: any[] }> {
 	debugLog('Interpreter', 'Sending request to LLM...');
 	
 	// Find the provider for this model
@@ -34,10 +40,11 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 	}
 
 	try {
-		const systemContent = 
+		const defaultSystemContent =
 			`You are a helpful assistant. Please respond with one JSON object named \`prompts_responses\` — no explanatory text before or after. Use the keys provided, e.g. \`prompt_1\`, \`prompt_2\`, and fill in the values. Values should be Markdown strings unless otherwise specified. Make your responses concise. For example, your response should look like: {"prompts_responses":{"prompt_1":"tag1, tag2, tag3","prompt_2":"- bullet1\n- bullet 2\n- bullet3"}}`;
 		
-		const promptContent = {	
+		const systemContent = options.systemInstruction || defaultSystemContent;
+		const promptContent = {
 			prompts: promptVariables.reduce((acc, { key, prompt }) => {
 				acc[key] = prompt;
 				return acc;
@@ -60,7 +67,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
 				],
-				max_tokens: 1600,
+				max_tokens: options.maxTokens ?? 1600,
 				stream: false
 			};					
 			headers = {
@@ -75,7 +82,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
 				],
-				max_tokens: 1600,
+				max_tokens: options.maxTokens ?? 1600,
 				stream: false
 			};
 			headers = {
@@ -86,7 +93,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 			requestUrl = provider.baseUrl;
 			requestBody = {
 				model: model.providerModelId,
-				max_tokens: 1600,
+				max_tokens: options.maxTokens ?? 1600,
 				messages: [
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
@@ -104,7 +111,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 			requestUrl = provider.baseUrl;
 			requestBody = {
 				model: model.providerModelId,
-				max_tokens: 1600,
+				max_tokens: options.maxTokens ?? 1600,
 				messages: [
 					{ role: 'system', content: systemContent },
 					{ role: 'user', content: `
@@ -131,6 +138,7 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 				],
 				format: 'json',
 				num_ctx: 120000,
+				...(options.maxTokens ? { num_predict: options.maxTokens } : {}),
 				temperature: 0.5,
 				stream: false
 			};
@@ -143,7 +151,8 @@ export async function sendToLLM(promptContext: string, content: string, promptVa
 					{ role: 'system', content: systemContent },
 					{ role: 'user', content: `${promptContext}` },
 					{ role: 'user', content: `${JSON.stringify(promptContent)}` }
-				]
+				],
+				...(options.maxTokens ? { max_tokens: options.maxTokens } : {})
 			};
 			headers = {
 				...headers,

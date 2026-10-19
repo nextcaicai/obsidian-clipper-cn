@@ -801,6 +801,18 @@
 	"readerTranscripts": {
 		"message": "字幕稿"
 	},
+	"transcriptFormatTimestamps": {
+		"message": "当前为逐条时间戳，点击切换为阅读排版"
+	},
+	"transcriptFormatReadable": {
+		"message": "当前为阅读排版，点击切换为逐条时间戳"
+	},
+	"transcriptFormatProcessing": {
+		"message": "正在整理字幕…"
+	},
+	"transcriptFormatFallback": {
+		"message": "AI 标点恢复失败，已按字幕时间间隔估算标点"
+	},
 	"readerTypography": {
 		"message": "排版"
 	},

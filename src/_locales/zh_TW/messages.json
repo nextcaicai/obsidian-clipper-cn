@@ -795,6 +795,18 @@
 	"readerTranscripts": {
 		"message": "逐字稿"
 	},
+	"transcriptFormatTimestamps": {
+		"message": "目前為逐條時間戳，點擊切換為閱讀排版"
+	},
+	"transcriptFormatReadable": {
+		"message": "目前為閱讀排版，點擊切換為逐條時間戳"
+	},
+	"transcriptFormatProcessing": {
+		"message": "正在整理字幕…"
+	},
+	"transcriptFormatFallback": {
+		"message": "AI 標點恢復失敗，已按字幕時間間隔估算標點"
+	},
 	"readerTypography": {
 		"message": "排版"
 	},

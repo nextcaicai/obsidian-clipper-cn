@@ -801,6 +801,18 @@
 	"readerTranscripts": {
 		"message": "Transcripts"
 	},
+	"transcriptFormatTimestamps": {
+		"message": "Timestamped transcript; click to switch to readable layout"
+	},
+	"transcriptFormatReadable": {
+		"message": "Readable transcript; click to switch to timestamped layout"
+	},
+	"transcriptFormatProcessing": {
+		"message": "Formatting transcript…"
+	},
+	"transcriptFormatFallback": {
+		"message": "AI punctuation failed; used local timestamp-interval estimates"
+	},
 	"readerTypography": {
 		"message": "Typography"
 	},
