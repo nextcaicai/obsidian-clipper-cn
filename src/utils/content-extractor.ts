@@ -1,5 +1,5 @@
 import { ExtractedContent } from '../types/types';
-import { createMarkdownContent } from 'defuddle/full';
+import { createMarkdownContent } from './markdown-utils';
 import { sanitizeFileName } from './string-utils';
 import { buildVariables, addSchemaOrgDataToVariables } from './shared';
 import browser from './browser-polyfill';

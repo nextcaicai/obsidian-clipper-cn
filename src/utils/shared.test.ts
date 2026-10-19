@@ -58,6 +58,13 @@ describe('buildVariables', () => {
 		expect(vars['{{url}}']).toBe('https://example.com/page');
 	});
 
+	test('uses a referer-free SSPAI image URL in the cover image variable', () => {
+		const vars = buildVariables(makeParams({
+			image: 'https://cdnfile.sspai.com/cover.png?imageMogr2/auto-orient/ignore-error/1',
+		}));
+		expect(vars['{{image}}']).toBe('https://rssfile.sspai.com/cover.png?imageMogr2/auto-orient/ignore-error/1');
+	});
+
 	test('strips text fragment with trailing ampersand', () => {
 		const vars = buildVariables(makeParams({
 			url: 'https://example.com/page#:~:text=foo&bar=1',

@@ -3,7 +3,7 @@
 // The caller provides a DocumentParser for their environment.
 
 import DefuddleClass from 'defuddle';
-import { createMarkdownContent } from 'defuddle/full';
+import { createMarkdownContent } from './utils/markdown-utils';
 import { compileTemplate, SelectorProcessor } from './utils/template-compiler';
 import { AsyncResolver, RenderContext } from './utils/renderer';
 import { applyFilters } from './utils/filters';

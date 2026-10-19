@@ -48,6 +48,12 @@
 - **多图文章支持** — 能保留正文中的多张 `mmbiz.qpic.cn` 图片，不再只抓取第一张图
 - **跨入口一致** — 浏览器扩展、CLI 和程序化 API 都会先归一化图片地址，减少不同入口输出不一致的问题
 
+### 少数派图片兼容
+
+剪藏少数派文章时，自动将图片地址从 `cdnfile.sspai.com` 切换为少数派自己的 `rssfile.sspai.com`，解决图片在 Obsidian 中因缺少来源页请求头而返回 403 的情况。保留原图片路径和画质参数，支持正文、选区、高亮和封面图片，浏览器扩展、CLI 和程序化 API 使用相同规则。
+
+图片仍保留为在线链接，不会转成 base64，也不会自动下载到本地。已有笔记不会被自动修改，需要重新剪藏。
+
 ### 为什么没有合并到官方项目？
 
 官方维护者[指出](https://github.com/obsidianmd/obsidian-clipper/pull/1)，针对特定网站的内容提取器应该在 [Defuddle](https://github.com/kepano/defuddle)（内容提取库）中实现，而不是在 Web Clipper 扩展本身。由于将 Bilibili 支持集成到 Defuddle 需要不同的架构方案，本 Fork 独立维护此功能，方便有需要的用户直接使用。

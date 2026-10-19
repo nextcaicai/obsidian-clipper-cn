@@ -1,6 +1,28 @@
 import { describe, expect, test } from 'vitest';
 import { parseHTML } from 'linkedom';
-import { normalizeImageSources } from './string-utils';
+import { getClippableImageUrl, normalizeImageSources } from './string-utils';
+
+describe('getClippableImageUrl', () => {
+	test.each(['https://cdnfile.sspai.com', 'http://cdnfile.sspai.com', '//cdnfile.sspai.com', 'https://CDNFILE.SSPAI.COM'])(
+		'normalizes %s and preserves the exact image path, query, and fragment',
+		host => {
+			const suffix = '/article/photo.png?imageView2/2/w/1120&q=90#image';
+			expect(getClippableImageUrl(host + suffix)).toBe('https://rssfile.sspai.com' + suffix);
+		},
+	);
+
+	test.each([
+		'https://rssfile.sspai.com/photo.png',
+		'https://cdnfile.sspai.com.example.com/photo.png',
+		'https://cdnfile.sspai.com@other.example/photo.png',
+		'https://example.com/cdnfile.sspai.com/photo.png',
+		'data:image/png;base64,AAAA',
+		'assets/photo.png',
+		'',
+	])('preserves other URLs: %s', url => {
+		expect(getClippableImageUrl(url)).toBe(url);
+	});
+});
 
 describe('normalizeImageSources', () => {
 	test('uses lazy-loaded image URLs before markdown extraction', () => {

@@ -142,6 +142,12 @@ const LAZY_IMAGE_SOURCE_ATTRIBUTES = [
 	'data-url',
 ];
 
+// SSPAI's web CDN rejects requests without a Referer. Its own RSS image
+// host serves the same paths without requiring the original page context.
+export function getClippableImageUrl(url: string): string {
+	return url.replace(/^(?:https?:)?\/\/cdnfile\.sspai\.com(?=\/|[?#]|$)/i, 'https://rssfile.sspai.com');
+}
+
 const LAZY_IMAGE_SRCSET_ATTRIBUTES = [
 	'data-srcset',
 	'data-lazy-srcset',

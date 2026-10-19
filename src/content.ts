@@ -4,7 +4,7 @@ import { loadSettings, generalSettings } from './utils/storage-utils';
 import Defuddle from 'defuddle';
 import { getDomain, normalizeImageSources } from './utils/string-utils';
 import { extractContentBySelector as extractContentBySelectorShared } from './utils/shared';
-import { createMarkdownContent } from 'defuddle/full';
+import { createMarkdownContent } from './utils/markdown-utils';
 import { flattenShadowDom } from './utils/flatten-shadow-dom';
 import { saveFile } from './utils/file-utils';
 import { debugLog } from './utils/debug';

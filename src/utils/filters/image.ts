@@ -1,4 +1,4 @@
-import { escapeMarkdown } from '../string-utils';
+import { escapeMarkdown, getClippableImageUrl } from '../string-utils';
 
 export const image = (str: string, param?: string): string | string[] => {
 	if (!str.trim()) {
@@ -21,7 +21,7 @@ export const image = (str: string, param?: string): string | string[] => {
 				if (typeof value === 'object' && value !== null) {
 					return processObject(value);
 				}
-				return `![${escapeMarkdown(String(value))}](${escapeMarkdown(key)})`;
+				return `![${escapeMarkdown(String(value))}](${escapeMarkdown(getClippableImageUrl(key))})`;
 			}).flat();
 		};
 
@@ -30,14 +30,14 @@ export const image = (str: string, param?: string): string | string[] => {
 				if (typeof item === 'object' && item !== null) {
 					return processObject(item);
 				}
-				return item ? `![${altText}](${escapeMarkdown(String(item))})` : '';
+				return item ? `![${altText}](${escapeMarkdown(getClippableImageUrl(String(item)))})` : '';
 			}).flat();
 		} else if (typeof data === 'object' && data !== null) {
 			return processObject(data);
 		}
 	} catch (error) {
 		// If parsing fails, treat it as a single URL string
-		return `![${altText}](${escapeMarkdown(str)})`;
+		return `![${altText}](${escapeMarkdown(getClippableImageUrl(str))})`;
 	}
 
 	return str;

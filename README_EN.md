@@ -48,6 +48,12 @@ The official version relies on the generic content extractor for WeChat Official
 - **Multi-image article support** — Preserves multiple `mmbiz.qpic.cn` images in the article body instead of only clipping the first image
 - **Consistent extraction paths** — Normalizes image sources across the browser extension, CLI, and programmatic API to reduce output differences between entry points
 
+### SSPAI image compatibility
+
+When clipping SSPAI articles, image URLs are switched from `cdnfile.sspai.com` to SSPAI's own `rssfile.sspai.com` host to avoid HTTP 403 responses when Obsidian loads images without a referring page. Image paths and quality parameters are preserved. The same rule applies to body, selection, highlight, and cover images across the browser extension, CLI, and programmatic API.
+
+Images remain online links; they are not embedded as base64 or automatically downloaded. Existing notes are not changed automatically and need to be clipped again.
+
 ### Why not merged upstream?
 
 The official maintainer [indicated](https://github.com/obsidianmd/obsidian-clipper/pull/1) that site-specific content extractors should be implemented in [Defuddle](https://github.com/kepano/defuddle) (the content extraction library), not in the Web Clipper extension itself. Since integrating Bilibili support into Defuddle would require a different architectural approach, this fork maintains the feature independently for users who need it now.

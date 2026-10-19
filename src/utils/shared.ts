@@ -3,7 +3,7 @@
 // storage-utils, browser globals). All browser-dependent behavior is injected
 // via parameters.
 
-import { sanitizeFileName, getDomain, escapeDoubleQuotes } from './string-utils';
+import { sanitizeFileName, getDomain, escapeDoubleQuotes, getClippableImageUrl } from './string-utils';
 import { Property } from '../types/types';
 import dayjs from 'dayjs';
 
@@ -55,7 +55,7 @@ export function buildVariables(params: BuildVariablesParams): Record<string, str
 		'{{favicon}}': params.favicon || '',
 		'{{fullHtml}}': (params.fullHtml || '').trim(),
 		'{{highlights}}': params.highlights || '',
-		'{{image}}': params.image || '',
+		'{{image}}': getClippableImageUrl(params.image || ''),
 		'{{noteName}}': noteName.trim(),
 		'{{published}}': (params.published || '').split(',')[0].trim(),
 		'{{site}}': (params.site || '').trim(),

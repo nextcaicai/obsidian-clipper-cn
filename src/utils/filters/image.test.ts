@@ -2,6 +2,14 @@ import { describe, test, expect } from 'vitest';
 import { image } from './image';
 
 describe('image filter', () => {
+	test('normalizes SSPAI images from selector strings, arrays, and objects', () => {
+		const url = 'https://cdnfile.sspai.com/article/photo.png?imageView2/2/w/1120';
+		const expected = '![图片](https://rssfile.sspai.com/article/photo.png?imageView2/2/w/1120)';
+		expect(image(url, '图片')).toBe(expected);
+		expect(image(JSON.stringify([url]), '图片')).toEqual([expected]);
+		expect(image(JSON.stringify({ [url]: '图片' }))).toEqual([expected]);
+	});
+
 	test('converts string to markdown image', () => {
 		expect(image('image.jpg', 'alt text')).toBe('![alt text](image.jpg)');
 	});
