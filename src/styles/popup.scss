@@ -374,35 +374,3 @@
 		}
 	}
 }
-
-.transcript-format-icons {
-	position: relative;
-	width: 20px;
-	height: 20px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-
-	> svg {
-		width: 18px;
-		height: 18px;
-	}
-
-	.transcript-format-clock {
-		position: absolute;
-		right: -3px;
-		bottom: -2px;
-		width: 11px;
-		height: 11px;
-		background: var(--background-primary);
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-
-		svg {
-			width: 9px;
-			height: 9px;
-		}
-	}
-}

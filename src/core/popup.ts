@@ -1105,7 +1105,7 @@ function updateTranscriptFormatButton(canToggle: boolean): void {
 	button.title = label;
 	button.setAttribute('aria-label', label);
 	button.innerHTML = transcriptFormatMode === 'timestamps'
-		? '<span class="transcript-format-icons" aria-hidden="true"><i data-lucide="clipboard-list"></i><span class="transcript-format-clock"><i data-lucide="clock"></i></span></span>'
+		? '<i data-lucide="clipboard-list" aria-hidden="true"></i>'
 		: '<i data-lucide="align-left" aria-hidden="true"></i>';
 	initializeIcons(button);
 }
